@@ -13,6 +13,7 @@ foundation = "1.8.3"
 uiText = "1.8.3"
 animationCore = "1.8.3"
 
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
