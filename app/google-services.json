@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "718502904880",
-    "project_id": "bharat-haat",
-    "storage_bucket": "bharat-haat.firebasestorage.app"
+    "project_number": "43910959228",
+    "project_id": "agile-transport-468612-n6",
+    "storage_bucket": "agile-transport-468612-n6.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:718502904880:android:4d5476acb799418759d9f5",
+        "mobilesdk_app_id": "1:43910959228:android:19d75a526425f22df9f9f9",
         "android_client_info": {
-          "package_name": "com.optivus.bharat_haat"
+          "package_name": "com.optivus.bharathaat"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "43910959228-ud9icp4pah0cf7nkp999ph3ra917a324.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.optivus.bharathaat",
+            "certificate_hash": "0f90ce1806266688d38145447e2d69f19b8433c5"
+          }
+        },
+        {
+          "client_id": "43910959228-nm549k2354jrg0b23criroah1vjpkqm7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyA3faIbjAR_kv6Y5sOJlXEemzv1Mexhpts"
+          "current_key": "AIzaSyAcDPB6OptMNt4e868T_cqgtwnQiQ2aVUo"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "43910959228-nm549k2354jrg0b23criroah1vjpkqm7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

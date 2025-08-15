@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.optivus.bharat_haat"
+    namespace = "com.optivus.bharathaat"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.optivus.bharat_haat"
+        applicationId = "com.optivus.bharathaat"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -104,5 +104,10 @@ dependencies {
 
     // Gson
     implementation("com.google.code.gson:gson:2.13.1")
+
+    // Also add the dependencies for the Credential Manager libraries and specify their versions
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
 }
