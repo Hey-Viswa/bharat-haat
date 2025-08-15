@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+    id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -73,6 +75,7 @@ dependencies {
 
     // Google Play services library
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+
     // ViewModel dependencies
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
@@ -88,5 +91,12 @@ dependencies {
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Hilt for dependency injection
+    implementation("com.google.dagger:hilt-android:2.56.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.56.2")
+
+    // Hilt Navigation Compose - MISSING DEPENDENCY
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
 }

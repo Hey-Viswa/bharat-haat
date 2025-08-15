@@ -5,41 +5,39 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
-import com.google.firebase.auth.FirebaseAuth
-import com.optivus.bharat_haat.data.repository.PreferencesRepository
-
-import com.optivus.bharat_haat.ui.screens.splash.SplashScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.rememberNavController
+import com.optivus.bharat_haat.ui.navigation.NavigationGraph
+import com.optivus.bharat_haat.ui.navigation.Screen
 import com.optivus.bharat_haat.ui.theme.BharathaatTheme
-import com.optivus.bharat_haat.ui.viewmodels.MainViewModel
-import com.optivus.bharat_haat.ui.viewmodels.NavigationTarget
+import com.optivus.bharat_haat.ui.viewmodels.AuthState
+import com.optivus.bharat_haat.ui.viewmodels.AuthViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             BharathaatTheme {
-                // Create dependencies
-                val firebaseAuth = FirebaseAuth.getInstance()
-                val preferencesRepository = PreferencesRepository(this)
+                val navController = rememberNavController()
+                val authViewModel: AuthViewModel = hiltViewModel()
+                val authState by authViewModel.authState.collectAsStateWithLifecycle()
 
-                // State to control splash screen visibility
-                var showSplashScreen by remember { mutableStateOf(true) }
-
-                if (showSplashScreen) {
-                    // Show splash screen first
-                    SplashScreen(
-                        onNavigateToOnboarding = {
-                            showSplashScreen = false
-                        }
-                    )
-                } else {
-                    // After splash screen, use MainViewModel logic
-                    val mainViewModel = MainViewModel(firebaseAuth, preferencesRepository)
-                    val navigationTarget by mainViewModel.navigationTarget.collectAsState()
-
-
+                // Determine start destination based on Firebase auth state
+                val startDestination = when (authState) {
+                    is AuthState.Authenticated -> Screen.Home.route
+                    is AuthState.Unauthenticated -> Screen.Login.route
+                    is AuthState.Loading -> Screen.Splash.route
+                    else -> Screen.Splash.route
                 }
+
+                NavigationGraph(
+                    navController = navController,
+                    startDestination = startDestination
+                )
             }
         }
     }

@@ -13,87 +13,141 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
 import com.optivus.bharat_haat.ui.screens.splash.SplashScreen
+import com.optivus.bharat_haat.ui.screens.auth.LoginScreen
+import com.optivus.bharat_haat.ui.screens.auth.SignupScreen
+import com.optivus.bharat_haat.ui.screens.home.HomeScreen
 
-// Navigation Routes
+// Navigation Routes - Using object for type safety
+object AuthRoutes {
+    const val SPLASH = "splash"
+    const val LOGIN = "login"
+    const val SIGNUP = "signup"
+    const val HOME = "home"
+    const val FORGOT_PASSWORD = "forgot_password"
+}
+
+// Navigation Routes with better structure
 sealed class Screen(val route: String) {
-    object Splash : Screen("splash")
-    object Onboarding : Screen("onboarding")
-    object Login : Screen("login")
-    object SignUp : Screen("signup")
-    object Home : Screen("home")
+    object Splash : Screen(AuthRoutes.SPLASH)
+    object Login : Screen(AuthRoutes.LOGIN)
+    object SignUp : Screen(AuthRoutes.SIGNUP)
+    object Home : Screen(AuthRoutes.HOME)
+    object ForgotPassword : Screen(AuthRoutes.FORGOT_PASSWORD)
 }
 
 @Composable
 fun NavigationGraph(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    startDestination: String = Screen.Splash.route
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Splash.route
+        startDestination = startDestination
     ) {
+        // Splash Screen
         composable(Screen.Splash.route) {
             SplashScreen(
                 onNavigateToOnboarding = {
-                    navController.navigate(Screen.Onboarding.route) {
+                    navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Onboarding.route) {
-            OnboardingScreen(
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route)
-                },
-                onNavigateToSignUp = {
-                    navController.navigate(Screen.SignUp.route)
-                }
-            )
-        }
-
+        // Login Screen
         composable(Screen.Login.route) {
             LoginScreen(
-                onNavigateToHome = {
+                onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                onNavigateToSignUp = {
-                    navController.navigate(Screen.SignUp.route)
+                onGoogleSignInClick = {
+                    // Handle Google sign-in logic
+                    // After successful login, navigate to home
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 },
-                onNavigateBack = {
-                    navController.popBackStack()
+                onForgotPasswordClick = {
+                    navController.navigate(Screen.ForgotPassword.route)
+                },
+                onSignUpClick = {
+                    navController.navigate(Screen.SignUp.route) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
 
+        // Signup Screen
         composable(Screen.SignUp.route) {
-            SignUpScreen(
-                onNavigateToHome = {
+            SignupScreen(
+                onSignUpSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 },
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route)
+                onGoogleSignInClick = {
+                    // Handle Google sign-in logic
+                    // After successful signup, navigate to home
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.SignUp.route) { inclusive = true }
+                    }
                 },
-                onNavigateBack = {
-                    navController.popBackStack()
+                onForgotPasswordClick = {
+                    navController.navigate(Screen.ForgotPassword.route)
+                },
+                onSignInClick = {
+                    // Navigate back to login or pop back stack if came from login
+                    if (navController.previousBackStackEntry?.destination?.route == Screen.Login.route) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.Login.route) {
+                            launchSingleTop = true
+                        }
+                    }
                 }
             )
         }
 
+        // Forgot Password Screen (placeholder)
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onResetComplete = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.ForgotPassword.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Home Screen
         composable(Screen.Home.route) {
-            HomeScreen()
+            HomeScreen(
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onProductClick = { productId ->
+                    // Navigate to product detail screen
+                    // TODO: Implement product detail navigation
+                }
+            )
         }
     }
 }
 
+// Forgot Password Screen (placeholder)
 @Composable
-fun OnboardingScreen(
-    onNavigateToLogin: () -> Unit,
-    onNavigateToSignUp: () -> Unit
+fun ForgotPasswordScreen(
+    onNavigateBack: () -> Unit,
+    onResetComplete: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -102,174 +156,24 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.weight(1f))
-
             Text(
-                text = "Welcome to Bharat Haat",
+                text = "Forgot Password",
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Discover authentic Indian products from local artisans and businesses",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = onNavigateToSignUp,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Get Started")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onNavigateToLogin,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Already have an account? Sign In")
-            }
-        }
-    }
-}
-
-@Composable
-fun LoginScreen(
-    onNavigateToHome: () -> Unit,
-    onNavigateToSignUp: () -> Unit,
-    onNavigateBack: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-
-            Text(
-                text = "Welcome Back",
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-
             Spacer(modifier = Modifier.height(32.dp))
-
-            Button(
-                onClick = onNavigateToHome,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Sign In (Demo)")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onNavigateToSignUp,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Create Account")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Button(
                 onClick = onNavigateBack,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
             ) {
-                Text("Back")
+                Text("Back to Login")
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-fun SignUpScreen(
-    onNavigateToHome: () -> Unit,
-    onNavigateToLogin: () -> Unit,
-    onNavigateBack: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-
-            Text(
-                text = "Create Account",
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Button(
-                onClick = onNavigateToHome,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Sign Up (Demo)")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onNavigateToLogin,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Already have an account? Sign In")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onNavigateBack,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Back")
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-fun HomeScreen() {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "🎉 Welcome to Bharat Haat! 🎉\n\nYou have successfully completed the initial setup!",
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(32.dp)
-            )
         }
     }
 }
