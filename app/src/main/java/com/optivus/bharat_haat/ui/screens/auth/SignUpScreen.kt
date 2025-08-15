@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -44,6 +45,7 @@ fun SignupScreen(
     onGoogleSignInClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
     onSignInClick: () -> Unit = {},
+    onPhoneSignUpClick: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     var fullName by remember { mutableStateOf("") }
@@ -163,15 +165,7 @@ fun SignupScreen(
                     placeholder = "Enter your full name",
                     leadingIcon = Icons.Default.Person,
                     keyboardType = KeyboardType.Text,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeAccent,
-                        unfocusedBorderColor = Grey300,
-                        focusedLabelColor = OrangeAccent,
-                        unfocusedLabelColor = Grey600,
-                        focusedLeadingIconColor = OrangeAccent,
-                        unfocusedLeadingIconColor = Grey500
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -187,15 +181,7 @@ fun SignupScreen(
                     placeholder = "Enter your email",
                     leadingIcon = Icons.Default.Email,
                     keyboardType = KeyboardType.Email,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeAccent,
-                        unfocusedBorderColor = Grey300,
-                        focusedLabelColor = OrangeAccent,
-                        unfocusedLabelColor = Grey600,
-                        focusedLeadingIconColor = OrangeAccent,
-                        unfocusedLeadingIconColor = Grey500
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -214,17 +200,7 @@ fun SignupScreen(
                     onTrailingIconClick = { passwordVisible = !passwordVisible },
                     keyboardType = KeyboardType.Password,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeAccent,
-                        unfocusedBorderColor = Grey300,
-                        focusedLabelColor = OrangeAccent,
-                        unfocusedLabelColor = Grey600,
-                        focusedLeadingIconColor = OrangeAccent,
-                        unfocusedLeadingIconColor = Grey500,
-                        focusedTrailingIconColor = OrangeAccent,
-                        unfocusedTrailingIconColor = Grey500
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -243,17 +219,7 @@ fun SignupScreen(
                     onTrailingIconClick = { confirmPasswordVisible = !confirmPasswordVisible },
                     keyboardType = KeyboardType.Password,
                     visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeAccent,
-                        unfocusedBorderColor = Grey300,
-                        focusedLabelColor = OrangeAccent,
-                        unfocusedLabelColor = Grey600,
-                        focusedLeadingIconColor = OrangeAccent,
-                        unfocusedLeadingIconColor = Grey500,
-                        focusedTrailingIconColor = OrangeAccent,
-                        unfocusedTrailingIconColor = Grey500
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -303,6 +269,35 @@ fun SignupScreen(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Phone Sign Up Button
+                OutlinedButton(
+                    onClick = onPhoneSignUpClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = OrangeAccent
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        brush = Brush.horizontalGradient(listOf(OrangeAccent, Orange500))
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Continue with Phone",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,10 +17,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.optivus.bharat_haat.R
+import com.optivus.bharat_haat.ui.theme.*
 import kotlinx.coroutines.delay
-import kotlin.math.sin
 
 @Composable
 fun SplashScreen(
@@ -43,166 +46,174 @@ fun SplashScreen(
     val logoAlpha = animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 2000,
+            durationMillis = 1500,
             easing = FastOutSlowInEasing
         ),
         label = "logo_alpha"
     )
 
-    val logoRotation = animateFloatAsState(
-        targetValue = if (startAnimation) 0f else -180f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
+    // Text animations
+    val textAlpha = animateFloatAsState(
+        targetValue = if (startAnimation) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 2000,
+            delayMillis = 800,
+            easing = FastOutSlowInEasing
         ),
-        label = "logo_rotation"
+        label = "text_alpha"
+    )
+
+    val textOffset = animateFloatAsState(
+        targetValue = if (startAnimation) 0f else 50f,
+        animationSpec = tween(
+            durationMillis = 1500,
+            delayMillis = 800,
+            easing = FastOutSlowInEasing
+        ),
+        label = "text_offset"
+    )
+
+    // Pulsing effect for logo
+    val pulse = infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
     )
 
     // Background gradient animation
-    val gradientAnimation by infiniteTransition.animateFloat(
+    val gradientAnimation = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "gradient_animation"
-    )
-
-    // Floating animation for subtle movement
-    val floatingOffset by infiniteTransition.animateFloat(
-        initialValue = -10f,
-        targetValue = 10f,
         animationSpec = infiniteRepeatable(
             animation = tween(3000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "floating_offset"
+        label = "gradient"
     )
 
-    // Pulse effect for the logo
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+    // Create animated gradient
+    val animatedGradient = Brush.radialGradient(
+        colors = listOf(
+            Orange100.copy(alpha = 0.3f + gradientAnimation.value * 0.2f),
+            Orange200.copy(alpha = 0.2f + gradientAnimation.value * 0.1f),
+            MaterialTheme.colorScheme.background
         ),
-        label = "pulse_scale"
+        radius = 800f + gradientAnimation.value * 200f
     )
 
-    // Shimmer effect
-    val shimmerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmer_alpha"
-    )
-
-    LaunchedEffect(key1 = true) {
-        delay(300) // Small delay for better effect
+    LaunchedEffect(Unit) {
         startAnimation = true
-        delay(3000) // Extended display time for animation appreciation
+        delay(3500) // Show splash for 3.5 seconds
         onNavigateToOnboarding()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFFF8F8F5).copy(alpha = 0.3f + gradientAnimation * 0.7f),
-                        Color(0xFFF3F3F0),
-                        Color(0xFFEEEEE8)
-                    ),
-                    radius = 800f + gradientAnimation * 200f
-                )
-            ),
+            .background(animatedGradient),
         contentAlignment = Alignment.Center
     ) {
-        // Background circles for depth
-        repeat(3) { index ->
-            val circleScale by infiniteTransition.animateFloat(
-                initialValue = 0.5f,
-                targetValue = 1.2f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = 4000 + index * 1000,
-                        easing = LinearEasing
-                    ),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "circle_scale_$index"
-            )
-
-            Box(
-                modifier = Modifier
-                    .size((100 + index * 80).dp)
-                    .scale(circleScale * logoAlpha.value)
-                    .clip(CircleShape)
-                    .background(
-                        Color.White.copy(alpha = 0.1f - index * 0.03f)
-                    )
-            )
-        }
-
-        // Main logo with multiple effects
-        Box(
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Glow effect behind logo
+            // Logo with pulsing animation
             Box(
                 modifier = Modifier
-                    .size(240.dp)
-                    .scale(logoScale.value * pulseScale)
+                    .size(120.dp)
+                    .scale(logoScale.value * if (startAnimation) pulse.value else 1f)
+                    .alpha(logoAlpha.value)
                     .clip(CircleShape)
                     .background(
-                        brush = Brush.radialGradient(
+                        Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFFF9800).copy(alpha = 0.2f * shimmerAlpha),
-                                Color.Transparent
+                                OrangeAccent,
+                                Orange500,
+                                Orange600
                             )
                         )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                // App icon or logo would go here
+                Text(
+                    text = "BH",
+                    style = MaterialTheme.typography.displayMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        fontSize = 36.sp
                     )
-            )
+                )
+            }
 
-            // Main logo with breathtaking animations
-            Image(
-                painter = painterResource(id = R.drawable.a_minimalist_and_mod),
-                contentDescription = "Bharat Haat Logo",
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // App name with slide-up animation
+            Text(
+                text = "Bharat Haat",
+                style = MaterialTheme.typography.displaySmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                ),
                 modifier = Modifier
-                    .size(200.dp)
-                    .alpha(logoAlpha.value)
-                    .scale(logoScale.value * pulseScale)
+                    .alpha(textAlpha.value)
                     .graphicsLayer {
-                        rotationZ = logoRotation.value
-                        translationY = floatingOffset
+                        translationY = textOffset.value
                     }
             )
 
-            // Shimmer overlay effect
-            Box(
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Tagline
+            Text(
+                text = "Your Digital Marketplace",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium
+                ),
                 modifier = Modifier
-                    .size(200.dp)
-                    .scale(logoScale.value)
-                    .alpha(shimmerAlpha * logoAlpha.value * 0.3f)
-                    .background(
-                        brush = Brush.sweepGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.6f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+                    .alpha(textAlpha.value)
+                    .graphicsLayer {
+                        translationY = textOffset.value + 20f
+                    }
             )
+        }
+
+        // Loading indicator at bottom
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp)
+                .alpha(textAlpha.value)
+        ) {
+            // Simple pulsing dot indicator
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                repeat(3) { index ->
+                    val dotAlpha = infiniteTransition.animateFloat(
+                        initialValue = 0.3f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(600, delayMillis = index * 200),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "dot_$index"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .alpha(dotAlpha.value)
+                            .clip(CircleShape)
+                            .background(Orange500)
+                    )
+                }
+            }
         }
     }
 }
-
-
-

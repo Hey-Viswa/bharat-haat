@@ -1,10 +1,11 @@
 package com.optivus.bharat_haat.ui.components.textfields
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,11 +24,54 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
+// Import our constants and utilities for consistent styling and validation
+import com.optivus.bharat_haat.constants.UIConstants
+import com.optivus.bharat_haat.constants.ValidationConstants
+import com.optivus.bharat_haat.utils.ValidationUtils
+
+// Light theme colors - hardcoded to avoid dark theme
+object LightThemeColors {
+    val primary = Color(0xFFE17A47) // Orange500 from our theme
+    val error = Color(0xFFD32F2F) // Error red
+    val outline = Color(0xFF757575) // Light grey outline
+    val onSurface = Color(0xFF1A1A1A) // Dark text on light surface
+    val onSurfaceVariant = Color(0xFF484848) // Medium grey text
+    val surface = Color(0xFFFFFBFF) // Light surface
+    val background = Color(0xFFFFFBFF) // Light background
+}
+
+/**
+ * CustomTextField - Enhanced text field component with integrated utilities
+ *
+ * Features:
+ * - Uses UIConstants for consistent spacing and styling
+ * - Integrates ValidationUtils for real-time validation
+ * - Supports validation callbacks for immediate feedback
+ * - Uses ValidationConstants for consistent limits
+ * - Always displays in light theme regardless of system theme
+ *
+ * Usage Examples:
+ * 1. Email field with validation:
+ *    CustomTextField(
+ *        value = email,
+ *        onValueChange = { email = it },
+ *        placeholder = "Enter your email",
+ *        validationType = ValidationType.EMAIL,
+ *        onValidationResult = { isValid, error ->
+ *            // Handle validation result
+ *        }
+ *    )
+ *
+ * 2. Password field with strength indicator:
+ *    CustomTextField(
+ *        value = password,
+ *        onValueChange = { password = it },
+ *        validationType = ValidationType.PASSWORD,
+ *        showPasswordStrength = true
+ *    )
+ */
 @Composable
 fun CustomTextField(
     value: String,
@@ -45,14 +89,66 @@ fun CustomTextField(
     enabled: Boolean = true,
     readOnly: Boolean = false,
 
-    // Visual Styling
-    shape: Shape = RoundedCornerShape(12.dp),
+    // Validation - NEW: Integrated validation using our ValidationUtils
+    validationType: ValidationType = ValidationType.NONE,
+    onValidationResult: ((Boolean, String?) -> Unit)? = null,
+    showPasswordStrength: Boolean = false,
+
+    // Visual Styling - Uses our UIConstants for consistency
+    shape: Shape = RoundedCornerShape(UIConstants.CORNER_RADIUS_LARGE),
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = Color(0xFFFF9800),
-        unfocusedBorderColor = Color(0xFFE0E0E0),
-        errorBorderColor = Color(0xFFE53E3E),
-        focusedLabelColor = Color(0xFFFF9800),
-        unfocusedLabelColor = Color(0xFF666666)
+        // Border colors - forced light theme
+        focusedBorderColor = LightThemeColors.primary,
+        unfocusedBorderColor = LightThemeColors.outline,
+        errorBorderColor = LightThemeColors.error,
+
+        // Label colors - forced light theme
+        focusedLabelColor = LightThemeColors.primary,
+        unfocusedLabelColor = LightThemeColors.onSurfaceVariant,
+        errorLabelColor = LightThemeColors.error,
+
+        // Text colors - forced light theme
+        focusedTextColor = LightThemeColors.onSurface,
+        unfocusedTextColor = LightThemeColors.onSurface,
+        disabledTextColor = LightThemeColors.onSurface.copy(alpha = UIConstants.ALPHA_DISABLED),
+        errorTextColor = LightThemeColors.onSurface,
+
+        // Placeholder colors - forced light theme
+        focusedPlaceholderColor = LightThemeColors.onSurfaceVariant.copy(alpha = 0.8f),
+        unfocusedPlaceholderColor = LightThemeColors.onSurfaceVariant.copy(alpha = 0.8f),
+        disabledPlaceholderColor = LightThemeColors.onSurfaceVariant.copy(alpha = UIConstants.ALPHA_DISABLED),
+        errorPlaceholderColor = LightThemeColors.onSurfaceVariant.copy(alpha = 0.8f),
+
+        // Container colors - forced light theme
+        focusedContainerColor = LightThemeColors.surface,
+        unfocusedContainerColor = LightThemeColors.surface,
+        disabledContainerColor = LightThemeColors.surface.copy(alpha = 0.12f),
+        errorContainerColor = LightThemeColors.surface,
+
+        // Icon colors - forced light theme
+        focusedLeadingIconColor = LightThemeColors.primary,
+        unfocusedLeadingIconColor = LightThemeColors.onSurfaceVariant,
+        disabledLeadingIconColor = LightThemeColors.onSurfaceVariant.copy(alpha = UIConstants.ALPHA_DISABLED),
+        errorLeadingIconColor = LightThemeColors.error,
+
+        focusedTrailingIconColor = LightThemeColors.primary,
+        unfocusedTrailingIconColor = LightThemeColors.onSurfaceVariant,
+        disabledTrailingIconColor = LightThemeColors.onSurfaceVariant.copy(alpha = UIConstants.ALPHA_DISABLED),
+        errorTrailingIconColor = LightThemeColors.error,
+
+        // Supporting text colors
+        focusedSupportingTextColor = LightThemeColors.onSurfaceVariant,
+        unfocusedSupportingTextColor = LightThemeColors.onSurfaceVariant,
+        disabledSupportingTextColor = LightThemeColors.onSurfaceVariant.copy(alpha = UIConstants.ALPHA_DISABLED),
+        errorSupportingTextColor = LightThemeColors.error,
+
+        // Cursor color - forced light theme
+        cursorColor = LightThemeColors.primary,
+        errorCursorColor = LightThemeColors.error,
+        selectionColors = TextSelectionColors(
+            handleColor = LightThemeColors.primary,
+            backgroundColor = LightThemeColors.primary.copy(alpha = 0.4f)
+        )
     ),
 
     // Icons
@@ -67,25 +163,45 @@ fun CustomTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     maxLines: Int = 1,
     minLines: Int = 1,
-    maxLength: Int = Int.MAX_VALUE,
+    maxLength: Int = getMaxLengthForType(validationType),
 
-    // Text Styling
-    textStyle: TextStyle = LocalTextStyle.current,
+    // Text Styling - forced light theme
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge.copy(
+        color = LightThemeColors.onSurface
+    ),
 
     // Focus
     focusRequester: FocusRequester? = null
 ) {
+    // Real-time validation using ValidationUtils
+    val validationResult = remember(value, validationType) {
+        validateInput(value, validationType)
+    }
+
+    // Trigger validation callback when result changes
+    LaunchedEffect(validationResult) {
+        onValidationResult?.invoke(validationResult.first, validationResult.second)
+    }
+
     val displayValue = if (value.length <= maxLength) value else value.take(maxLength)
+    val currentIsError = isError || (validationResult.second != null && value.isNotEmpty())
+    val currentErrorMessage = when {
+        isError && errorMessage.isNotEmpty() -> errorMessage
+        validationResult.second != null && value.isNotEmpty() -> validationResult.second!!
+        else -> ""
+    }
 
     Column(modifier = modifier) {
-        // Label
+        // Label with consistent spacing from UIConstants
         if (label.isNotEmpty()) {
             Text(
                 text = label,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isError) Color(0xFFE53E3E) else Color(0xFF666666),
-                modifier = Modifier.padding(bottom = 8.dp)
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = if (currentIsError) LightThemeColors.error
+                    else LightThemeColors.onSurfaceVariant
+                ),
+                modifier = Modifier.padding(bottom = UIConstants.SPACING_SMALL)
             )
         }
 
@@ -101,14 +217,20 @@ fun CustomTextField(
                 .fillMaxWidth()
                 .let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
             placeholder = if (placeholder.isNotEmpty()) {
-                { Text(placeholder, color = Color(0xFF999999)) }
+                {
+                    Text(
+                        placeholder,
+                        color = LightThemeColors.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             } else null,
             leadingIcon = leadingIcon?.let { icon ->
                 {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isError) Color(0xFFE53E3E) else Color(0xFF666666)
+                        tint = if (currentIsError) LightThemeColors.error
+                        else LightThemeColors.onSurfaceVariant
                     )
                 }
             },
@@ -120,12 +242,13 @@ fun CustomTextField(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isError) Color(0xFFE53E3E) else Color(0xFF666666)
+                            tint = if (currentIsError) LightThemeColors.error
+                            else LightThemeColors.onSurfaceVariant
                         )
                     }
                 }
             },
-            isError = isError,
+            isError = currentIsError,
             enabled = enabled,
             readOnly = readOnly,
             keyboardOptions = KeyboardOptions(
@@ -141,29 +264,152 @@ fun CustomTextField(
             textStyle = textStyle
         )
 
-        // Helper/Error Text
-        val displayText = if (isError && errorMessage.isNotEmpty()) errorMessage else helperText
-        if (displayText.isNotEmpty()) {
+        // Password Strength Indicator - NEW feature using ValidationUtils
+        if (showPasswordStrength && validationType == ValidationType.PASSWORD && value.isNotEmpty()) {
+            val passwordStrength = ValidationUtils.getPasswordStrength(value)
+
+            Spacer(modifier = Modifier.height(UIConstants.SPACING_SMALL))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(UIConstants.SPACING_SMALL)
+            ) {
+                // Strength indicator bars
+                repeat(4) { index ->
+                    Box(
+                        modifier = Modifier
+                            .height(4.dp)
+                            .weight(1f)
+                            .background(
+                                color = when {
+                                    index < passwordStrength.ordinal -> Color(passwordStrength.color)
+                                    else -> LightThemeColors.outline.copy(alpha = 0.3f)
+                                },
+                                shape = RoundedCornerShape(UIConstants.CORNER_RADIUS_SMALL)
+                            )
+                    )
+                }
+            }
+
             Text(
-                text = displayText,
-                fontSize = 12.sp,
-                color = if (isError) Color(0xFFE53E3E) else Color(0xFF666666),
-                modifier = Modifier.padding(top = 4.dp, start = 16.dp)
+                text = "Password strength: ${passwordStrength.label}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(passwordStrength.color),
+                modifier = Modifier.padding(top = UIConstants.SPACING_EXTRA_SMALL)
             )
         }
 
-        // Character Count (if maxLength is set)
+        // Helper/Error Text with consistent spacing
+        val displayText = if (currentIsError && currentErrorMessage.isNotEmpty()) {
+            currentErrorMessage
+        } else if (!currentIsError && helperText.isNotEmpty()) {
+            helperText
+        } else ""
+
+        if (displayText.isNotEmpty()) {
+            Text(
+                text = displayText,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = if (currentIsError) LightThemeColors.error
+                    else LightThemeColors.onSurfaceVariant
+                ),
+                modifier = Modifier.padding(
+                    top = UIConstants.SPACING_EXTRA_SMALL,
+                    start = UIConstants.SPACING_LARGE
+                )
+            )
+        }
+
+        // Character Count with consistent spacing
         if (maxLength != Int.MAX_VALUE) {
             Text(
                 text = "${displayValue.length}/$maxLength",
-                fontSize = 12.sp,
-                color = Color(0xFF999999),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = LightThemeColors.onSurfaceVariant.copy(alpha = 0.7f)
+                ),
                 textAlign = TextAlign.End,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, end = 16.dp)
+                    .padding(
+                        top = UIConstants.SPACING_EXTRA_SMALL,
+                        end = UIConstants.SPACING_LARGE
+                    )
             )
         }
+    }
+}
+
+/**
+ * Validation types that integrate with our ValidationUtils
+ */
+enum class ValidationType {
+    NONE,
+    EMAIL,
+    PASSWORD,
+    PHONE,
+    NAME,
+    PINCODE,
+    OTP,
+    PRICE,
+    REVIEW
+}
+
+/**
+ * Get maximum length based on validation type using ValidationConstants
+ */
+private fun getMaxLengthForType(type: ValidationType): Int {
+    return when (type) {
+        ValidationType.EMAIL -> ValidationConstants.EMAIL_MAX_LENGTH
+        ValidationType.PASSWORD -> ValidationConstants.PASSWORD_MAX_LENGTH
+        ValidationType.PHONE -> ValidationConstants.PHONE_MAX_LENGTH
+        ValidationType.NAME -> ValidationConstants.NAME_MAX_LENGTH
+        ValidationType.PINCODE -> ValidationConstants.PINCODE_LENGTH
+        ValidationType.OTP -> ValidationConstants.OTP_LENGTH
+        ValidationType.REVIEW -> ValidationConstants.REVIEW_MAX_LENGTH
+        else -> Int.MAX_VALUE
+    }
+}
+
+/**
+ * Validate input using ValidationUtils and return (isValid, errorMessage)
+ */
+private fun validateInput(value: String, type: ValidationType): Pair<Boolean, String?> {
+    if (value.isEmpty()) return Pair(true, null) // Don't validate empty values
+
+    return when (type) {
+        ValidationType.EMAIL -> {
+            val error = ValidationUtils.getEmailError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.PASSWORD -> {
+            val error = ValidationUtils.getPasswordError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.PHONE -> {
+            val error = ValidationUtils.getPhoneError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.NAME -> {
+            val error = ValidationUtils.getNameError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.PINCODE -> {
+            val error = ValidationUtils.getPincodeError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.OTP -> {
+            val error = ValidationUtils.getOTPError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.PRICE -> {
+            val error = ValidationUtils.getPriceError(value)
+            Pair(error == null, error)
+        }
+        ValidationType.REVIEW -> {
+            val error = ValidationUtils.getReviewError(value)
+            Pair(error == null, error)
+        }
+        else -> Pair(true, null)
     }
 }
 

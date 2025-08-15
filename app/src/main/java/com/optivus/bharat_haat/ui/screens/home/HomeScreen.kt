@@ -399,7 +399,18 @@ private fun ProductCard(
 }
 
 private fun getCategories(): List<String> {
-    return listOf("All", "Clothing", "Kitchen", "Handicrafts", "Food", "Home Decor")
+    return listOf(
+        "All", 
+        "Traditional Clothing", 
+        "Kitchen & Cookware", 
+        "Handicrafts & Art", 
+        "Organic Food", 
+        "Home Decor", 
+        "Jewelry & Accessories",
+        "Textiles & Fabrics",
+        "Pottery & Ceramics",
+        "Spices & Herbs"
+    )
 }
 
 @Preview(showBackground = true)

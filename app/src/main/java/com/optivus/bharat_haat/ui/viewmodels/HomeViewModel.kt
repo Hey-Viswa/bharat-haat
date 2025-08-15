@@ -157,3 +157,12 @@ data class Product(
     val inStock: Boolean,
     val seller: String
 )
+
+// User information data class for displaying user details
+data class UserInfo(
+    val uid: String,
+    val displayName: String,
+    val email: String,
+    val photoUrl: String? = null,
+    val isEmailVerified: Boolean = false
+)

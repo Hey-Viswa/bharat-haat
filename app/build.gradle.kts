@@ -96,7 +96,13 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.56.2")
     ksp("com.google.dagger:hilt-android-compiler:2.56.2")
 
-    // Hilt Navigation Compose - MISSING DEPENDENCY
+    // Hilt Navigation Compose
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+    // Google Fonts for Compose - Adding this for Poppins font
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.9.0")
+
+    // Gson
+    implementation("com.google.code.gson:gson:2.13.1")
 
 }
