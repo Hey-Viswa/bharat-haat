@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">bharat-haat</string>
+    <!-- TODO: Replace this with your actual web client ID from Google Cloud Console -->
+    <string name="default_web_client_id">43910959228-j9qv0ou66pc3u0jnf7r9nl03i31kk5hk.apps.googleusercontent.com</string>
 </resources>
