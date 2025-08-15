@@ -8,6 +8,9 @@ import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.optivus.bharat_haat.ui.navigation.NavigationGraph
 import com.optivus.bharat_haat.ui.navigation.Screen
 import com.optivus.bharat_haat.ui.theme.BharathaatTheme
@@ -21,33 +24,19 @@ import com.optivus.bharat_haat.utils.*
 
 /**
  * MainActivity - Entry point of the Bharat Haat ecommerce app
- *
- * Utilities Integration Guide:
- *
- * 1. PreferencesUtils: Use for storing user session, app settings, cart counts
- *    - When: App initialization, user login/logout, settings changes
- *    - Example: PreferencesUtils.isLoggedIn(context), PreferencesUtils.getCartCount(context)
- *
- * 2. NetworkUtils: Check connectivity before API calls, handle network errors
- *    - When: Before making API requests, showing offline states
- *    - Example: if (NetworkUtils.isNetworkAvailable(context)) { makeApiCall() }
- *
- * 3. NotificationUtils: Create notification channels, show order/offer notifications
- *    - When: App initialization for channels, order updates, promotional offers
- *    - Example: NotificationUtils.createNotificationChannels(context)
- *
- * 4. DeviceUtils: Get device info for analytics, screen size for responsive UI
- *    - When: Analytics tracking, responsive design decisions
- *    - Example: if (DeviceUtils.isTablet(context)) { showTabletLayout() }
- *
- * 5. SecurityUtils: Session management, input validation, encryption
- *    - When: User authentication, storing sensitive data, API security
- *    - Example: SecurityUtils.generateSessionToken(), SecurityUtils.encryptData()
+ * Implements Firebase Auth initialization and user state checking as per Firebase documentation
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    // Firebase Auth instance - as per Firebase documentation
+    private lateinit var auth: FirebaseAuth
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Initialize Firebase Auth - as per Firebase documentation
+        auth = Firebase.auth
 
         // Initialize app-level utilities on app start
         initializeAppUtilities()
@@ -82,6 +71,17 @@ class MainActivity : ComponentActivity() {
                     startDestination = startDestination
                 )
             }
+        }
+    }
+
+    // Check if user is signed in - as per Firebase documentation
+    public override fun onStart() {
+        super.onStart()
+        // Check if user is signed in (non-null) and update UI accordingly
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            // User is signed in, you can reload/update UI if needed
+            // The AuthViewModel will handle the state management
         }
     }
 

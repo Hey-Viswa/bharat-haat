@@ -35,8 +35,8 @@ import com.optivus.bharat_haat.ui.components.buttons.SignInProvider
 import com.optivus.bharat_haat.ui.components.informational.OrDivider
 import com.optivus.bharat_haat.ui.components.textfields.CustomTextField
 import com.optivus.bharat_haat.ui.theme.*
-import com.optivus.bharat_haat.ui.viewmodels.AuthState
-import com.optivus.bharat_haat.ui.viewmodels.AuthViewModel
+import com.optivus.bharat_haat.ui.viewmodels.SignupUiState
+import com.optivus.bharat_haat.ui.viewmodels.SignupViewModel
 
 @Composable
 fun SignupScreen(
@@ -46,7 +46,7 @@ fun SignupScreen(
     onForgotPasswordClick: () -> Unit = {},
     onSignInClick: () -> Unit = {},
     onPhoneSignUpClick: () -> Unit = {},
-    authViewModel: AuthViewModel = hiltViewModel()
+    signupViewModel: SignupViewModel = hiltViewModel()
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -55,12 +55,13 @@ fun SignupScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    val signupState by signupViewModel.signupState.collectAsStateWithLifecycle()
+    val formValidation by signupViewModel.formValidation.collectAsStateWithLifecycle()
 
-    // Handle auth state changes
-    LaunchedEffect(authState) {
-        when (authState) {
-            is AuthState.Authenticated -> {
+    // Handle signup state changes
+    LaunchedEffect(signupState) {
+        when (signupState) {
+            is SignupUiState.Success -> {
                 onSignUpSuccess()
             }
             else -> { /* Handle other states */ }
@@ -135,7 +136,7 @@ fun SignupScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Error message
-                if (authState is AuthState.Error) {
+                if (signupState is SignupUiState.Error) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -146,7 +147,7 @@ fun SignupScreen(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = (authState as AuthState.Error).message,
+                            text = (signupState as SignupUiState.Error).message,
                             modifier = Modifier.padding(12.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontSize = 14.sp
@@ -159,7 +160,7 @@ fun SignupScreen(
                     value = fullName,
                     onValueChange = {
                         fullName = it
-                        authViewModel.clearError()
+                        signupViewModel.clearError()
                     },
                     label = "Full Name",
                     placeholder = "Enter your full name",
@@ -175,7 +176,7 @@ fun SignupScreen(
                     value = email,
                     onValueChange = {
                         email = it
-                        authViewModel.clearError()
+                        signupViewModel.clearError()
                     },
                     label = "Email Address",
                     placeholder = "Enter your email",
@@ -191,7 +192,7 @@ fun SignupScreen(
                     value = password,
                     onValueChange = {
                         password = it
-                        authViewModel.clearError()
+                        signupViewModel.clearError()
                     },
                     label = "Create Password",
                     placeholder = "Create your password",
@@ -210,7 +211,7 @@ fun SignupScreen(
                     value = confirmPassword,
                     onValueChange = {
                         confirmPassword = it
-                        authViewModel.clearError()
+                        signupViewModel.clearError()
                     },
                     label = "Confirm Password",
                     placeholder = "Confirm your password",
@@ -228,7 +229,7 @@ fun SignupScreen(
                 EcommerceButton(
                     text = "Create Account",
                     onClick = {
-                        authViewModel.signUpWithEmailAndPassword(fullName, email, password, confirmPassword)
+                        signupViewModel.signUpWithEmailAndPassword(fullName, email, password, confirmPassword)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -238,7 +239,7 @@ fun SignupScreen(
                     shape = RoundedCornerShape(16.dp),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    isLoading = authState is AuthState.Loading
+                    isLoading = signupState is SignupUiState.Loading
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -299,32 +300,33 @@ fun SignupScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-                // Bottom Sign In Section
+                // Sign In Link
                 Row(
                     horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Already have an account? ",
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         color = Grey600,
                         fontWeight = FontWeight.Medium
                     )
                     TextButton(
                         onClick = onSignInClick,
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                     ) {
                         Text(
                             text = "Sign In",
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             color = OrangeAccent,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -332,8 +334,8 @@ fun SignupScreen(
 
 @Preview(showBackground = true)
 @Composable
-private fun SignupScreenPreview() {
-    MaterialTheme {
+fun SignupScreenPreview() {
+    BharathaatTheme {
         SignupScreen()
     }
 }

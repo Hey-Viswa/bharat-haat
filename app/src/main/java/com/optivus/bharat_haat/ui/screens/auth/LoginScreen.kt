@@ -266,7 +266,8 @@ fun LoginScreen(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = OrangeAccent
                     ),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
                         brush = Brush.horizontalGradient(listOf(OrangeAccent, Orange500))
                     ),
                     shape = RoundedCornerShape(16.dp)

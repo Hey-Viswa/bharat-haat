@@ -14,12 +14,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.optivus.bharat_haat.R
 import com.optivus.bharat_haat.ui.theme.*
 import kotlinx.coroutines.delay
@@ -140,13 +138,10 @@ fun SplashScreen(
                 contentAlignment = Alignment.Center
             ) {
                 // App icon or logo would go here
-                Text(
-                    text = "BH",
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        fontSize = 36.sp
-                    )
+                Image(
+                    painter = painterResource(id = R.drawable.a_minimalist_and_mod),
+                    contentDescription = "Bharat Haat Logo",
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 

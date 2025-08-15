@@ -55,41 +55,34 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
-     * Sign in with email and password
-     * Uses: ValidationUtils for input validation, SecurityUtils for rate limiting,
-     * NetworkUtils for connectivity check, PreferencesUtils for session storage
+     * Sign in with email and password - Following Firebase documentation approach
+     * Implements the exact pattern from Firebase docs with proper error handling
      */
     fun signInWithEmailAndPassword(email: String, password: String) {
         viewModelScope.launch {
             try {
                 // 1. Check network connectivity before attempting authentication
-                // Use: Prevent unnecessary auth attempts when offline
                 if (!NetworkUtils.isNetworkAvailable(context)) {
                     _authState.value = AuthState.Error("No internet connection. Please check your network.")
                     return@launch
                 }
 
-                // 2. Sanitize inputs to prevent injection attacks
-                // Use: SecurityUtils for input sanitization
+                // 2. Sanitize and validate inputs
                 val sanitizedEmail = StringUtils.trimAndClean(email)
                 val sanitizedPassword = StringUtils.trimAndClean(password)
 
-                // 3. Validate inputs using our comprehensive validation utils
-                // Use: ValidationUtils provides consistent validation across the app
                 val emailError = ValidationUtils.getEmailError(sanitizedEmail)
                 if (emailError != null) {
                     _authState.value = AuthState.Error(emailError)
                     return@launch
                 }
 
-                // Note: We don't validate password strength for login, only format
                 if (sanitizedPassword.isBlank()) {
                     _authState.value = AuthState.Error("Password is required")
                     return@launch
                 }
 
-                // 4. Check rate limiting to prevent brute force attacks
-                // Use: SecurityUtils to implement security measures
+                // 3. Check rate limiting to prevent brute force attacks
                 val rateLimitKey = "login_${sanitizedEmail}"
                 if (SecurityUtils.isRateLimited(context, rateLimitKey, maxAttempts = 5, timeWindowMinutes = 15)) {
                     _authState.value = AuthState.Error("Too many login attempts. Please try again later.")
@@ -97,37 +90,49 @@ class AuthViewModel @Inject constructor(
                 }
 
                 _authState.value = AuthState.Loading
-
-                // Record login attempt for rate limiting
                 SecurityUtils.recordAttempt(context, rateLimitKey)
 
-                val result = firebaseAuth.signInWithEmailAndPassword(sanitizedEmail, sanitizedPassword).await()
+                // 4. Firebase Auth sign-in - Following exact Firebase documentation pattern
+                firebaseAuth.signInWithEmailAndPassword(sanitizedEmail, sanitizedPassword)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            // Sign in success, update UI with the signed-in user's information
+                            val user = firebaseAuth.currentUser
+                            updateUIAfterSuccessfulLogin(user)
 
-                // 5. On successful login, store user session data
-                // Use: PreferencesUtils to maintain user state across app sessions
-                result.user?.let { user ->
-                    _currentUser.value = user
+                            // Clear rate limiting on successful login
+                            SecurityUtils.clearRateLimit(context, rateLimitKey)
 
-                    // Store user session information
-                    PreferencesUtils.setLoggedIn(context, true)
-                    PreferencesUtils.saveUserId(context, user.uid)
-                    PreferencesUtils.saveUserEmail(context, user.email ?: "")
-
-                    // Generate and store session token for additional security
-                    val sessionToken = SecurityUtils.generateSessionToken()
-                    PreferencesUtils.saveUserToken(context, sessionToken)
-
-                    // Clear rate limiting on successful login
-                    SecurityUtils.clearRateLimit(context, rateLimitKey)
-
-                    _authState.value = AuthState.Authenticated
-                } ?: run {
-                    _authState.value = AuthState.Error("Authentication failed")
-                }
+                            _authState.value = AuthState.Authenticated
+                        } else {
+                            // If sign in fails, display a message to the user
+                            val errorMessage = getFirebaseErrorMessage(task.exception ?: Exception("Authentication failed"))
+                            _authState.value = AuthState.Error(errorMessage)
+                        }
+                    }
 
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(getFirebaseErrorMessage(e))
             }
+        }
+    }
+
+    /**
+     * Update UI and preferences after successful login
+     * Centralizes all post-login operations
+     */
+    private fun updateUIAfterSuccessfulLogin(user: FirebaseUser?) {
+        user?.let { firebaseUser ->
+            _currentUser.value = firebaseUser
+
+            // Store user session information using PreferencesUtils
+            PreferencesUtils.setLoggedIn(context, true)
+            PreferencesUtils.saveUserId(context, firebaseUser.uid)
+            PreferencesUtils.saveUserEmail(context, firebaseUser.email ?: "")
+
+            // Generate and store session token for additional security
+            val sessionToken = SecurityUtils.generateSessionToken()
+            PreferencesUtils.saveUserToken(context, sessionToken)
         }
     }
 
