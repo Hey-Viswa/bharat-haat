@@ -37,6 +37,14 @@ import com.optivus.bharathaat.ui.components.textfields.CustomTextField
 import com.optivus.bharathaat.ui.theme.*
 import com.optivus.bharathaat.ui.viewmodels.SignupUiState
 import com.optivus.bharathaat.ui.viewmodels.SignupViewModel
+import com.optivus.bharathaat.ui.viewmodels.AuthViewModel
+import com.optivus.bharathaat.ui.viewmodels.AuthState
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun SignupScreen(
@@ -46,7 +54,8 @@ fun SignupScreen(
     onForgotPasswordClick: () -> Unit = {},
     onSignInClick: () -> Unit = {},
     onPhoneSignUpClick: () -> Unit = {},
-    signupViewModel: SignupViewModel = hiltViewModel()
+    signupViewModel: SignupViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -57,7 +66,32 @@ fun SignupScreen(
 
     val signupState by signupViewModel.signupState.collectAsStateWithLifecycle()
     val formValidation by signupViewModel.formValidation.collectAsStateWithLifecycle()
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // Google Sign-In Activity Result Launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                // Sign up with Firebase using the Google account (this creates new account or signs in existing)
+                authViewModel.signInWithGoogle(account)
+            } catch (e: ApiException) {
+                // Handle sign-in error
+                authViewModel.clearError()
+            }
+        }
+    }
+
+    // Function to launch Google Sign-In
+    fun launchGoogleSignIn() {
+        val signInIntent = authViewModel.getGoogleSignInClient().signInIntent
+        googleSignInLauncher.launch(signInIntent)
+    }
 
     // Handle signup state changes
     LaunchedEffect(signupState) {
@@ -69,11 +103,31 @@ fun SignupScreen(
         }
     }
 
-    // Show error snackbar
+    // Handle auth state changes (for Google Sign-In)
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthState.Authenticated -> {
+                onSignUpSuccess()
+            }
+            else -> { /* Handle other states */ }
+        }
+    }
+
+    // Show error snackbar for signup
     if (signupState is SignupUiState.Error) {
         LaunchedEffect(signupState) {
             snackbarHostState.showSnackbar(
                 message = (signupState as SignupUiState.Error).message,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
+    // Show error snackbar for auth (Google Sign-In errors)
+    if (authState is AuthState.Error) {
+        LaunchedEffect(authState) {
+            snackbarHostState.showSnackbar(
+                message = (authState as AuthState.Error).message,
                 duration = SnackbarDuration.Short
             )
         }
@@ -250,20 +304,21 @@ fun SignupScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Google Sign In Button
-                    SignInButton(
+                    EcommerceButton(
                         text = "Continue with Google",
-                        onClick = onGoogleSignInClick,
+                        onClick = {
+                            launchGoogleSignIn()
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
-                        iconDrawable = R.drawable.google_logo_search_new_svgrepo_com,
-                        signInProvider = SignInProvider.GOOGLE,
                         containerColor = Color.White,
                         contentColor = Grey700,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Grey300),
                         shape = RoundedCornerShape(16.dp),
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        isLoading = authState is AuthState.Loading,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Grey300)
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
