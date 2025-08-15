@@ -4,10 +4,13 @@ import androidx.compose.ui.graphics.Color
 
 // Primary Colors - Orange theme matching the design
 val Orange500 = Color(0xFFE17A47) // Main orange from the design
+val OrangeAccent = Color(0xFFF18F46) // Design specification orange
 val Orange400 = Color(0xFFE68B5A)
 val Orange600 = Color(0xFFCC6A3F)
 val Orange300 = Color(0xFFEA9C6D)
 val Orange700 = Color(0xFFB85A37)
+val Orange200 = Color(0xFFFFB577)
+val Orange100 = Color(0xFFFFE8D6)
 
 // Neutral Colors
 val Grey50 = Color(0xFFFAFAFA)
@@ -26,3 +29,13 @@ val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF000000)
 val Error = Color(0xFFD32F2F)
 val Success = Color(0xFF2E7D32)
+
+// Background Colors for auth screens
+val AuthBackgroundStart = Color(0xFFFFFFFF) // White
+val AuthBackgroundEnd = Color(0xFFFFF8F5) // Soft beige
+
+// Dark mode specific colors
+val DarkSurface = Color(0xFF1E1E1E)
+val DarkBackground = Color(0xFF121212)
+val DarkOnSurface = Color(0xFFE5E5E5)
+val DarkOnBackground = Color(0xFFE5E5E5)

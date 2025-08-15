@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Bharathaat" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Bharathaat" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Completely disable system splash screen -->
+        <item name="android:windowBackground">#F3F3F0</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+
+        <!-- Android 12+ splash screen attributes -->
+        <item name="android:windowSplashScreenBackground">#F3F3F0</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@null</item>
+        <item name="android:windowSplashScreenBrandingImage">@null</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#F3F3F0</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+    </style>
 </resources>

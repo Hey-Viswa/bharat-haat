@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.optivus.bharat_haat" />
+                  <option name="mobileSdkAppId" value="1:718502904880:android:4d5476acb799418759d9f5" />
+                  <option name="projectId" value="bharat-haat" />
+                  <option name="projectNumber" value="718502904880" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
