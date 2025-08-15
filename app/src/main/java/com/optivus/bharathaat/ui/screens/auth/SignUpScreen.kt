@@ -304,7 +304,8 @@ fun SignupScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Google Sign In Button
-                    EcommerceButton(
+
+                    SignInButton(
                         text = "Continue with Google",
                         onClick = {
                             launchGoogleSignIn()
@@ -312,14 +313,16 @@ fun SignupScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
+                        iconDrawable = R.drawable.google_logo_search_new_svgrepo_com,
+                        signInProvider = SignInProvider.GOOGLE,
                         containerColor = Color.White,
                         contentColor = Grey700,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Grey300),
                         shape = RoundedCornerShape(16.dp),
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        isLoading = authState is AuthState.Loading,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Grey300)
+                        fontWeight = FontWeight.Medium
                     )
+
 
                     Spacer(modifier = Modifier.height(12.dp))
 
