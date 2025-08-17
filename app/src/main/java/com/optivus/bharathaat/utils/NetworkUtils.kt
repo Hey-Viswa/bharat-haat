@@ -19,8 +19,11 @@ object NetworkUtils {
             val network = connectivityManager.activeNetwork ?: return false
             val networkCapabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
 
+            // Check for internet capability, but don't require validation immediately
             networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+             networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+             networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
         } else {
             @Suppress("DEPRECATION")
             val networkInfo = connectivityManager.activeNetworkInfo
@@ -87,11 +90,36 @@ object NetworkUtils {
      */
     suspend fun hasInternetConnection(): Boolean {
         return try {
-            val socket = Socket()
-            val socketAddress = InetSocketAddress("8.8.8.8", 53)
-            socket.connect(socketAddress, 3000)
-            socket.close()
-            true
+            // Try multiple approaches for better reliability
+            
+            // First, try Google DNS (8.8.8.8) on port 53
+            try {
+                val socket = Socket()
+                val socketAddress = InetSocketAddress("8.8.8.8", 53)
+                socket.connect(socketAddress, 3000)
+                socket.close()
+                return true
+            } catch (e: Exception) {
+                // If that fails, try Cloudflare DNS (1.1.1.1) on port 53
+                try {
+                    val socket = Socket()
+                    val socketAddress = InetSocketAddress("1.1.1.1", 53)
+                    socket.connect(socketAddress, 2000)
+                    socket.close()
+                    return true
+                } catch (e2: Exception) {
+                    // If DNS ports are blocked, try HTTPS port with Google
+                    try {
+                        val socket = Socket()
+                        val socketAddress = InetSocketAddress("www.google.com", 80)
+                        socket.connect(socketAddress, 3000)
+                        socket.close()
+                        return true
+                    } catch (e3: Exception) {
+                        return false
+                    }
+                }
+            }
         } catch (e: Exception) {
             false
         }

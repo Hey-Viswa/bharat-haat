@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
 import com.optivus.bharathaat.ui.screens.splash.SplashScreen
+import com.optivus.bharathaat.ui.screens.splash.NoInternetScreen
 import com.optivus.bharathaat.ui.screens.auth.LoginScreen
 import com.optivus.bharathaat.ui.screens.auth.SignupScreen
 import com.optivus.bharathaat.ui.screens.home.HomeScreen
@@ -20,6 +21,7 @@ import com.optivus.bharathaat.ui.screens.auth.EmailVerificationScreen
 // Navigation Routes - Using object for type safety
 object AuthRoutes {
     const val SPLASH = "splash"
+    const val NO_INTERNET = "no_internet"
     const val LOGIN = "login"
     const val SIGNUP = "signup"
     const val HOME = "home"
@@ -32,6 +34,7 @@ object AuthRoutes {
 // Navigation Routes with better structure
 sealed class Screen(val route: String) {
     object Splash : Screen(AuthRoutes.SPLASH)
+    object NoInternet : Screen(AuthRoutes.NO_INTERNET)
     object Login : Screen(AuthRoutes.LOGIN)
     object SignUp : Screen(AuthRoutes.SIGNUP)
     object Home : Screen(AuthRoutes.HOME)
@@ -74,12 +77,11 @@ private val fadeOutFast = fadeOut(animationSpec = tween(TRANSITION_DURATION))
 
 @Composable
 fun NavigationGraph(
-    navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Splash.route
+    navController: NavHostController = rememberNavController()
 ) {
     NavHost(
         navController = navController,
-        startDestination = startDestination,
+        startDestination = Screen.Splash.route,
         enterTransition = { slideInFromRight },
         exitTransition = { slideOutToLeft },
         popEnterTransition = { slideInFromLeft },
@@ -95,6 +97,27 @@ fun NavigationGraph(
                 onNavigateToOnboarding = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                },
+                onNavigateToNoInternet = {
+                    navController.navigate(Screen.NoInternet.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // No Internet Screen
+        composable(
+            Screen.NoInternet.route,
+            enterTransition = { fadeInFast },
+            exitTransition = { fadeOutFast }
+        ) {
+            NoInternetScreen(
+                onRetry = {
+                    // Navigate back to splash to retry connection
+                    navController.navigate(Screen.Splash.route) {
+                        popUpTo(Screen.NoInternet.route) { inclusive = true }
                     }
                 }
             )

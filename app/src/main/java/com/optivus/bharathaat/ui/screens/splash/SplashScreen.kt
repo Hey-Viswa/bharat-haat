@@ -1,6 +1,8 @@
 package com.optivus.bharathaat.ui.screens.splash
 
 import androidx.compose.animation.core.*
+import androidx.compose.animation.core.EaseOutQuint
+import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.foundation.Image
 import com.optivus.bharathaat.R
 import androidx.compose.foundation.background
@@ -19,24 +21,45 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.optivus.bharathaat.ui.theme.*
-import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
-    onNavigateToOnboarding: () -> Unit
+    onNavigateToOnboarding: () -> Unit,
+    onNavigateToNoInternet: () -> Unit,
+    viewModel: SplashViewModel = hiltViewModel()
 ) {
     var startAnimation by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    
+    // Handle navigation based on ViewModel state
+    LaunchedEffect(uiState.navigationTarget) {
+        when (uiState.navigationTarget) {
+            NavigationTarget.ONBOARDING -> {
+                onNavigateToOnboarding()
+                viewModel.onNavigationHandled()
+            }
+            NavigationTarget.NO_INTERNET -> {
+                onNavigateToNoInternet()
+                viewModel.onNavigationHandled()
+            }
+            null -> {
+                // Still loading or no navigation needed yet
+            }
+        }
+    }
 
     // Multiple animation states for breathtaking effect
     val infiniteTransition = rememberInfiniteTransition(label = "infinite_transition")
 
     // Main logo animations
     val logoScale = animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0.1f,
+        targetValue = if (startAnimation) 1f else 0.3f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium
         ),
         label = "logo_scale"
     )
@@ -44,8 +67,8 @@ fun SplashScreen(
     val logoAlpha = animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 1500,
-            easing = FastOutSlowInEasing
+            durationMillis = 1200,
+            easing = EaseOutQuint
         ),
         label = "logo_alpha"
     )
@@ -54,29 +77,29 @@ fun SplashScreen(
     val textAlpha = animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 2000,
+            durationMillis = 1800,
             delayMillis = 800,
-            easing = FastOutSlowInEasing
+            easing = EaseOutQuint
         ),
         label = "text_alpha"
     )
 
     val textOffset = animateFloatAsState(
-        targetValue = if (startAnimation) 0f else 50f,
+        targetValue = if (startAnimation) 0f else 20f,
         animationSpec = tween(
-            durationMillis = 1500,
+            durationMillis = 1600,
             delayMillis = 800,
-            easing = FastOutSlowInEasing
+            easing = EaseOutQuint
         ),
         label = "text_offset"
     )
 
-    // Pulsing effect for logo
+    // Gentle pulsing effect for logo
     val pulse = infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.98f,
+        targetValue = 1.02f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(2000, easing = EaseInOutSine),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse"
@@ -105,8 +128,7 @@ fun SplashScreen(
 
     LaunchedEffect(Unit) {
         startAnimation = true
-        delay(3500) // Show splash for 3.5 seconds
-        onNavigateToOnboarding()
+        // Navigation is now handled by the ViewModel
     }
 
     Box(
@@ -122,7 +144,7 @@ fun SplashScreen(
             // Logo with pulsing animation
             Box(
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(160.dp)
                     .scale(logoScale.value * if (startAnimation) pulse.value else 1f)
                     .alpha(logoAlpha.value)
                     .clip(CircleShape)
@@ -145,12 +167,12 @@ fun SplashScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // App name with slide-up animation
             Text(
                 text = "Bharat Haat",
-                style = MaterialTheme.typography.displaySmall.copy(
+                style = MaterialTheme.typography.displayMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 ),
@@ -158,22 +180,6 @@ fun SplashScreen(
                     .alpha(textAlpha.value)
                     .graphicsLayer {
                         translationY = textOffset.value
-                    }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Tagline
-            Text(
-                text = "Your Digital Marketplace",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Medium
-                ),
-                modifier = Modifier
-                    .alpha(textAlpha.value)
-                    .graphicsLayer {
-                        translationY = textOffset.value + 20f
                     }
             )
         }

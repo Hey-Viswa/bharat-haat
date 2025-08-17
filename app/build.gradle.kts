@@ -110,4 +110,7 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
+    // Accompanist Swipe to Refresh
+    implementation ("com.google.accompanist:accompanist-swiperefresh:0.31.0-alpha")
+
 }
