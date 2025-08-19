@@ -2,18 +2,19 @@
 <resources>
 
     <style name="Theme.Bharathaat" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Completely disable system splash screen -->
-        <item name="android:windowBackground">#F3F3F0</item>
+        <!-- Dark theme customizations -->
+        <item name="android:windowBackground">@color/white</item> <!-- white is #FF121212 in values-night/colors.xml -->
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowContentOverlay">@null</item>
 
         <!-- Android 12+ splash screen attributes -->
-        <item name="android:windowSplashScreenBackground">#F3F3F0</item>
+        <item name="android:windowSplashScreenBackground">@color/white</item>
         <item name="android:windowSplashScreenAnimatedIcon">@null</item>
         <item name="android:windowSplashScreenBrandingImage">@null</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">#F3F3F0</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/white</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
     </style>
+
 </resources>
