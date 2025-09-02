@@ -420,6 +420,70 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
+     * Send email verification
+     */
+    fun sendEmailVerification() {
+        viewModelScope.launch {
+            try {
+                val user = firebaseAuth.currentUser
+                if (user == null) {
+                    _authState.value = AuthState.Error("No signed-in user to verify")
+                    return@launch
+                }
+
+                // Check if email is already verified
+                if (user.isEmailVerified) {
+                    _authState.value = AuthState.Authenticated
+                    return@launch
+                }
+
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    _authState.value = AuthState.Error("No internet connection. Please check your network.")
+                    return@launch
+                }
+
+                _authState.value = AuthState.Loading
+
+                // Add action code settings to customize the email
+                val actionCodeSettings = com.google.firebase.auth.ActionCodeSettings.newBuilder()
+                    .setHandleCodeInApp(true)
+                    .setUrl("https://bharathaat.page.link/verify") // You can customize this
+                    .build()
+
+                // Send verification email with custom settings
+                user.sendEmailVerification(actionCodeSettings).await()
+
+                _authState.value = AuthState.EmailVerificationSent
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(getFirebaseErrorMessage(e))
+            }
+        }
+    }
+
+    /**
+     * Reload user and check if email is verified
+     */
+    fun reloadAndCheckEmailVerified() {
+        viewModelScope.launch {
+            try {
+                val user = firebaseAuth.currentUser
+                if (user == null) {
+                    _authState.value = AuthState.Error("No signed-in user to verify")
+                    return@launch
+                }
+                user.reload().await()
+                if (firebaseAuth.currentUser?.isEmailVerified == true) {
+                    _authState.value = AuthState.Authenticated
+                } else {
+                    _authState.value = AuthState.EmailNotVerified
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(getFirebaseErrorMessage(e))
+            }
+        }
+    }
+
+    /**
      * Get user-friendly error messages from Firebase exceptions
      * Uses: StringUtils for message formatting
      */
@@ -475,5 +539,7 @@ sealed class AuthState {
     object Authenticated : AuthState()
     object Unauthenticated : AuthState()
     object PasswordResetEmailSent : AuthState()
+    object EmailVerificationSent : AuthState()
+    object EmailNotVerified : AuthState()
     data class Error(val message: String) : AuthState()
 }

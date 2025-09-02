@@ -7,7 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -87,11 +87,19 @@ fun ForgotPasswordScreen(
         startAnimation = true
     }
 
+    // Clear auth state when navigating back
+    DisposableEffect(Unit) {
+        onDispose {
+            authViewModel.clearError()
+        }
+    }
+
     // React to auth state changes: success -> show success UI; errors -> snackbar
     LaunchedEffect(authState) {
         when (authState) {
             is AuthState.PasswordResetEmailSent -> {
                 isEmailSent = true
+                snackbarHostState.showSnackbar("Password reset email sent successfully!")
             }
             is AuthState.Error -> {
                 snackbarHostState.showSnackbar((authState as AuthState.Error).message)
@@ -121,13 +129,16 @@ fun ForgotPasswordScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = onNavigateBack,
+                    onClick = {
+                        authViewModel.clearError()
+                        onNavigateBack()
+                    },
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -201,16 +212,18 @@ fun ForgotPasswordScreen(
                         placeholder = "Enter your email address",
                         label = "Email Address",
                         leadingIcon = Icons.Default.Email,
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = authState is AuthState.Error,
-                        errorMessage = if (authState is AuthState.Error) (authState as AuthState.Error).message else ""
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
 
                     // Send reset link (calls ViewModel)
                     Button(
-                        onClick = { authViewModel.sendPasswordReset(email) },
+                        onClick = {
+                            if (email.isNotBlank()) {
+                                authViewModel.sendPasswordReset(email.trim())
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -233,65 +246,19 @@ fun ForgotPasswordScreen(
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 16.sp
-                            )
+                                )
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // OR Divider and Google Sign-in option
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = "OR",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                            ),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Google Sign In for password reset
-                    OutlinedButton(
-                        onClick = { /* Google sign-in based reset if desired */ },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Orange500
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = Brush.horizontalGradient(listOf(Orange500, Orange600))
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(
-                            text = "Continue with Google",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 15.sp
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
                     // Back to Login
                     TextButton(
-                        onClick = onNavigateBack,
+                        onClick = {
+                            authViewModel.clearError()
+                            onNavigateBack()
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
@@ -347,11 +314,32 @@ fun ForgotPasswordScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "We have sent a password reset link to your email address. Please check your inbox and follow the instructions.",
+                        text = "We have sent a password reset link to",
                         style = MaterialTheme.typography.bodyLarge.copy(
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = Orange500
+                        ),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Please check your inbox and follow the instructions to reset your password.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             textAlign = TextAlign.Center,
-                            lineHeight = 24.sp
+                            lineHeight = 20.sp
                         ),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -359,7 +347,10 @@ fun ForgotPasswordScreen(
                     Spacer(modifier = Modifier.height(40.dp))
 
                     Button(
-                        onClick = onResetComplete,
+                        onClick = {
+                            authViewModel.clearError()
+                            onResetComplete()
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -374,6 +365,25 @@ fun ForgotPasswordScreen(
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Resend option
+                    TextButton(
+                        onClick = {
+                            isEmailSent = false
+                            authViewModel.clearError()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Didn't receive email? Try again",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = Orange500,
+                                fontWeight = FontWeight.Medium
                             )
                         )
                     }

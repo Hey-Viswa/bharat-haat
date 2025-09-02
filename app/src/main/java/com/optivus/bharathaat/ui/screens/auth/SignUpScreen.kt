@@ -47,8 +47,9 @@ import com.google.android.gms.common.api.ApiException
 @Composable
 fun SignupScreen(
     modifier: Modifier = Modifier,
-    onSignUpSuccess: () -> Unit = {},
+    onSignUpSuccess: (String) -> Unit = {},
     onSignInClick: () -> Unit = {},
+    onGoogleSignInSuccess: () -> Unit = {},
     signupViewModel: SignupViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -90,7 +91,7 @@ fun SignupScreen(
     LaunchedEffect(signupState) {
         when (signupState) {
             is SignupUiState.Success -> {
-                onSignUpSuccess()
+                onSignUpSuccess(email)
             }
             else -> { /* Handle other states */ }
         }
@@ -100,7 +101,7 @@ fun SignupScreen(
     LaunchedEffect(authState) {
         when (authState) {
             is AuthState.Authenticated -> {
-                onSignUpSuccess()
+                onGoogleSignInSuccess()
             }
             else -> { /* Handle other states */ }
         }

@@ -15,6 +15,8 @@ import com.optivus.bharathaat.ui.screens.auth.SignupScreen
 import com.optivus.bharathaat.ui.screens.home.HomeScreen
 import com.optivus.bharathaat.ui.screens.auth.ForgotPasswordScreen
 import com.optivus.bharathaat.ui.screens.auth.EmailVerificationScreen
+import com.optivus.bharathaat.ui.screens.profile.ProfileScreen
+import com.optivus.bharathaat.ui.screens.profile.UserSettingsScreen
 
 // Navigation Routes - Using object for type safety
 object AuthRoutes {
@@ -25,6 +27,8 @@ object AuthRoutes {
     const val HOME = "home"
     const val FORGOT_PASSWORD = "forgot_password"
     const val EMAIL_VERIFICATION = "email_verification"
+    const val PROFILE = "profile"
+    const val USER_SETTINGS = "user_settings"
 }
 
 // Navigation Routes with better structure
@@ -35,6 +39,8 @@ sealed class Screen(val route: String) {
     object SignUp : Screen(AuthRoutes.SIGNUP)
     object Home : Screen(AuthRoutes.HOME)
     object ForgotPassword : Screen(AuthRoutes.FORGOT_PASSWORD)
+    object Profile : Screen(AuthRoutes.PROFILE)
+    object UserSettings : Screen(AuthRoutes.USER_SETTINGS)
     object EmailVerification : Screen("${AuthRoutes.EMAIL_VERIFICATION}?email={email}&fromRegistration={fromRegistration}") {
         fun createRoute(email: String = "", fromRegistration: Boolean = false) =
             "${AuthRoutes.EMAIL_VERIFICATION}?email=$email&fromRegistration=$fromRegistration"
@@ -162,8 +168,8 @@ fun NavigationGraph(
             popExitTransition = { slideOutToRight }
         ) {
             SignupScreen(
-                onSignUpSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                onSignUpSuccess = { email ->
+                    navController.navigate(Screen.EmailVerification.createRoute(email = email, fromRegistration = true)) {
                         popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 },
@@ -175,6 +181,11 @@ fun NavigationGraph(
                         navController.navigate(Screen.Login.route) {
                             launchSingleTop = true
                         }
+                    }
+                },
+                onGoogleSignInSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 }
             )
@@ -238,7 +249,54 @@ fun NavigationGraph(
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onProductClick = { _ -> }
+                onProductClick = { _ -> },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                }
+            )
+        }
+
+        // Profile Screen
+        composable(
+            Screen.Profile.route,
+            enterTransition = { slideInFromRight },
+            exitTransition = { slideOutToLeft },
+            popEnterTransition = { slideInFromLeft },
+            popExitTransition = { slideOutToRight }
+        ) {
+            ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.UserSettings.route)
+                },
+                onSignOut = {
+                    // Only navigate to login if user explicitly signed out
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // User Settings Screen
+        composable(
+            Screen.UserSettings.route,
+            enterTransition = { slideInFromRight },
+            exitTransition = { slideOutToLeft },
+            popEnterTransition = { slideInFromLeft },
+            popExitTransition = { slideOutToRight }
+        ) {
+            UserSettingsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onAccountDeleted = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }

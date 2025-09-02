@@ -71,6 +71,8 @@ dependencies {
     // Firebase dependencies (using BoM versions)
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
 
 
     // Google Play services library
@@ -86,6 +88,7 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
@@ -96,9 +99,9 @@ dependencies {
     // Hilt for dependency injection
     implementation("com.google.dagger:hilt-android:2.56.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
-    ksp("com.google.dagger:hilt-android-compiler:2.56.2")
+    ksp("com.google.dagger:hilt-compiler:2.56.2")
 
-    // Hilt Navigation Compose
+    // Hilt Navigation Compose (newer)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Google Fonts for Compose - Adding this for Poppins font
@@ -107,7 +110,7 @@ dependencies {
     // Gson
     implementation("com.google.code.gson:gson:2.13.1")
 
-    // Also add the dependencies for the Credential Manager libraries and specify their versions
+    // Credential Manager libraries
     implementation("androidx.credentials:credentials:1.5.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")

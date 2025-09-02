@@ -41,6 +41,7 @@ import com.optivus.bharathaat.ui.viewmodels.UserInfo
 fun HomeScreen(
     onLogout: () -> Unit = {},
     onProductClick: (String) -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel(),
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -114,18 +115,16 @@ fun HomeScreen(
                         onDismissRequest = { showUserMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Profile") },
-                            onClick = { showUserMenu = false },
+                            text = { Text("View Profile") },
+                            onClick = {
+                                showUserMenu = false
+                                onNavigateToProfile()
+                            },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = { showUserMenu = false },
-                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
-                            text = { Text("Logout") },
+                            text = { Text("Sign Out") },
                             onClick = {
                                 showUserMenu = false
                                 authViewModel.signOut()
