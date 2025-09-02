@@ -14,8 +14,6 @@ import com.optivus.bharathaat.ui.screens.auth.LoginScreen
 import com.optivus.bharathaat.ui.screens.auth.SignupScreen
 import com.optivus.bharathaat.ui.screens.home.HomeScreen
 import com.optivus.bharathaat.ui.screens.auth.ForgotPasswordScreen
-import com.optivus.bharathaat.ui.screens.auth.PhoneAuthScreen
-import com.optivus.bharathaat.ui.screens.auth.OTPVerificationScreen
 import com.optivus.bharathaat.ui.screens.auth.EmailVerificationScreen
 
 // Navigation Routes - Using object for type safety
@@ -26,8 +24,6 @@ object AuthRoutes {
     const val SIGNUP = "signup"
     const val HOME = "home"
     const val FORGOT_PASSWORD = "forgot_password"
-    const val PHONE_AUTH = "phone_auth"
-    const val OTP_VERIFICATION = "otp_verification"
     const val EMAIL_VERIFICATION = "email_verification"
 }
 
@@ -39,10 +35,6 @@ sealed class Screen(val route: String) {
     object SignUp : Screen(AuthRoutes.SIGNUP)
     object Home : Screen(AuthRoutes.HOME)
     object ForgotPassword : Screen(AuthRoutes.FORGOT_PASSWORD)
-    object PhoneAuth : Screen(AuthRoutes.PHONE_AUTH)
-    object OTPVerification : Screen("${AuthRoutes.OTP_VERIFICATION}/{phoneNumber}") {
-        fun createRoute(phoneNumber: String) = "${AuthRoutes.OTP_VERIFICATION}/$phoneNumber"
-    }
     object EmailVerification : Screen("${AuthRoutes.EMAIL_VERIFICATION}?email={email}&fromRegistration={fromRegistration}") {
         fun createRoute(email: String = "", fromRegistration: Boolean = false) =
             "${AuthRoutes.EMAIL_VERIFICATION}?email=$email&fromRegistration=$fromRegistration"
@@ -94,8 +86,14 @@ fun NavigationGraph(
             exitTransition = { fadeOutFast }
         ) {
             SplashScreen(
-                onNavigateToOnboarding = {
-                    navController.navigate(Screen.Login.route) {
+                onNavigateToAuth = {
+                    // Not used in new e-commerce flow - auth only required during checkout
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
@@ -144,9 +142,6 @@ fun NavigationGraph(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                onPhoneSignInClick = {
-                    navController.navigate(Screen.PhoneAuth.route)
-                },
                 onForgotPasswordClick = {
                     navController.navigate(Screen.ForgotPassword.route)
                 },
@@ -172,19 +167,6 @@ fun NavigationGraph(
                         popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 },
-                onGoogleSignInClick = {
-                    // Handle Google sign-in logic
-                    // After successful signup, navigate to home
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.SignUp.route) { inclusive = true }
-                    }
-                },
-                onPhoneSignUpClick = {
-                    navController.navigate(Screen.PhoneAuth.route)
-                },
-                onForgotPasswordClick = {
-                    navController.navigate(Screen.ForgotPassword.route)
-                },
                 onSignInClick = {
                     // Navigate back to login or pop back stack if came from login
                     if (navController.previousBackStackEntry?.destination?.route == Screen.Login.route) {
@@ -198,7 +180,7 @@ fun NavigationGraph(
             )
         }
 
-        // Forgot Password Screen
+        // Forgot Password Screen (email-only)
         composable(
             Screen.ForgotPassword.route,
             enterTransition = { slideInFromRight },
@@ -214,55 +196,6 @@ fun NavigationGraph(
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.ForgotPassword.route) { inclusive = true }
                     }
-                },
-                onNavigateToPhoneAuth = {
-                    navController.navigate(Screen.PhoneAuth.route)
-                }
-            )
-        }
-
-        // Phone Authentication Screen
-        composable(
-            Screen.PhoneAuth.route,
-            enterTransition = { slideInFromRight },
-            exitTransition = { slideOutToLeft },
-            popEnterTransition = { slideInFromLeft },
-            popExitTransition = { slideOutToRight }
-        ) {
-            PhoneAuthScreen(
-                onPhoneSubmitted = { phoneNumber ->
-                    navController.navigate(Screen.OTPVerification.createRoute(phoneNumber))
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-                onNavigateToEmailAuth = {
-                    navController.navigate(Screen.EmailVerification.createRoute())
-                }
-            )
-        }
-
-        // OTP Verification Screen
-        composable(
-            Screen.OTPVerification.route,
-            enterTransition = { slideInFromRight },
-            exitTransition = { slideOutToLeft },
-            popEnterTransition = { slideInFromLeft },
-            popExitTransition = { slideOutToRight }
-        ) { backStackEntry ->
-            val phoneNumber = backStackEntry.arguments?.getString("phoneNumber") ?: ""
-            OTPVerificationScreen(
-                phoneNumber = phoneNumber,
-                onOTPVerified = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.OTPVerification.route) { inclusive = true }
-                    }
-                },
-                onResendOTP = {
-                    // Handle resend OTP logic - in demo mode, just show toast
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
                 }
             )
         }
@@ -285,19 +218,15 @@ fun NavigationGraph(
                         popUpTo(Screen.EmailVerification.route) { inclusive = true }
                     }
                 },
-                onResendVerification = {
-                    // Handle resend verification logic
-                },
+                onResendVerification = { },
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onChangeEmail = {
-                    // Allow changing email address
-                }
+                onChangeEmail = { }
             )
         }
 
-        // Home Screen with fade transition for fast loading feel
+        // Home Screen
         composable(
             Screen.Home.route,
             enterTransition = { fadeInFast },
@@ -309,10 +238,7 @@ fun NavigationGraph(
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onProductClick = { productId ->
-                    // Navigate to product detail screen
-                    // TODO: Implement product detail navigation
-                }
+                onProductClick = { _ -> }
             )
         }
     }

@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,16 +34,15 @@ import kotlinx.coroutines.delay
 fun ForgotPasswordScreen(
     onNavigateBack: () -> Unit,
     onResetComplete: () -> Unit,
-    onNavigateToPhoneAuth: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var isEmailSent by remember { mutableStateOf(false) }
     var startAnimation by remember { mutableStateOf(false) }
-    var resetMethod by remember { mutableStateOf("email") } // "email" or "phone"
 
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Animation states
     val contentAlpha = animateFloatAsState(
@@ -89,226 +87,130 @@ fun ForgotPasswordScreen(
         startAnimation = true
     }
 
-    // Handle auth state changes - Fix the AuthState.Success issue
+    // React to auth state changes: success -> show success UI; errors -> snackbar
     LaunchedEffect(authState) {
         when (authState) {
-            is AuthState.Authenticated -> {
-                // For demo purposes, simulate email sent
+            is AuthState.PasswordResetEmailSent -> {
                 isEmailSent = true
-                delay(2000)
-                onResetComplete()
             }
-            else -> {}
+            is AuthState.Error -> {
+                snackbarHostState.showSnackbar((authState as AuthState.Error).message)
+            }
+            else -> Unit
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(animatedGradient)
-            .verticalScroll(scrollState)
-            .padding(24.dp)
-            .alpha(contentAlpha.value)
-            .graphicsLayer { translationY = contentOffset.value }
-    ) {
-        // Top App Bar
-        Row(
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(animatedGradient)
+                .verticalScroll(scrollState)
+                .padding(24.dp)
+                .padding(padding)
+                .alpha(contentAlpha.value)
+                .graphicsLayer { translationY = contentOffset.value }
         ) {
-            IconButton(
-                onClick = onNavigateBack,
+            // Top App Bar
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        if (!isEmailSent) {
-            // Reset Password Content
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Illustration
-                Box(
+                IconButton(
+                    onClick = onNavigateBack,
                     modifier = Modifier
-                        .size(120.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    Orange200.copy(alpha = 0.3f),
-                                    Orange100.copy(alpha = 0.1f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
                 ) {
                     Icon(
-                        imageVector = if (resetMethod == "email") Icons.Default.Email else Icons.Default.Phone,
-                        contentDescription = if (resetMethod == "email") "Email" else "Phone",
-                        modifier = Modifier.size(48.dp),
-                        tint = Orange500
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-                // Title
-                Text(
-                    text = "Reset Password",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    ),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Method Selection Tabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            if (!isEmailSent) {
+                // Reset Password Content
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Email Tab
-                    FilterChip(
-                        onClick = { resetMethod = "email" },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Email,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                    // Illustration
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        Orange200.copy(alpha = 0.3f),
+                                        Orange100.copy(alpha = 0.1f)
+                                    )
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Email")
-                            }
-                        },
-                        selected = resetMethod == "email",
-                        modifier = Modifier.weight(1f),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Orange500,
-                            selectedLabelColor = Color.White
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Email,
+                            contentDescription = "Email",
+                            modifier = Modifier.size(48.dp),
+                            tint = Orange500
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Title
+                    Text(
+                        text = "Reset Password",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        ),
+                        textAlign = TextAlign.Center
                     )
 
-                    // Phone Tab
-                    FilterChip(
-                        onClick = { resetMethod = "phone" },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Phone,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Phone")
-                            }
-                        },
-                        selected = resetMethod == "phone",
-                        modifier = Modifier.weight(1f),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Orange500,
-                            selectedLabelColor = Color.White
-                        )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Subtitle
+                    Text(
+                        text = "Enter your email address and we'll send you a link to reset your password.",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 24.sp
+                        ),
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(40.dp))
 
-                // Subtitle based on method
-                Text(
-                    text = if (resetMethod == "email")
-                        "Enter your email address and we'll send you a link to reset your password."
-                    else
-                        "Enter your phone number and we'll send you an OTP to reset your password.",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 24.sp
-                    ),
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // Input Field based on method
-                if (resetMethod == "email") {
-                    val currentAuthState = authState // Store in local variable for smart cast
+                    // Email Input Field
                     CustomTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = {
+                            email = it
+                            authViewModel.clearError()
+                        },
                         placeholder = "Enter your email address",
                         label = "Email Address",
                         leadingIcon = Icons.Default.Email,
                         modifier = Modifier.fillMaxWidth(),
-                        isError = currentAuthState is AuthState.Error,
-                        errorMessage = if (currentAuthState is AuthState.Error) currentAuthState.message else ""
+                        isError = authState is AuthState.Error,
+                        errorMessage = if (authState is AuthState.Error) (authState as AuthState.Error).message else ""
                     )
-                } else {
-                    // Phone input - redirect to phone auth
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Orange100.copy(alpha = 0.3f)
-                        ),
-                        onClick = onNavigateToPhoneAuth
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Phone,
-                                contentDescription = null,
-                                tint = Orange500,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Verify with Phone Number",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Orange700
-                                )
-                            )
-                            Text(
-                                text = "Tap to continue with phone verification",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = Orange700.copy(alpha = 0.8f)
-                                )
-                            )
-                        }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                // Action Button
-                if (resetMethod == "email") {
+                    // Send reset link (calls ViewModel)
                     Button(
-                        onClick = {
-                            if (email.isNotBlank()) {
-                                // For demo: simulate password reset
-                                isEmailSent = true
-                            }
-                        },
+                        onClick = { authViewModel.sendPasswordReset(email) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -331,159 +233,154 @@ fun ForgotPasswordScreen(
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 16.sp
-                                )
+                            )
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // OR Divider and Google Sign-in option
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = "OR",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            ),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Google Sign In for password reset
+                    OutlinedButton(
+                        onClick = { /* Google sign-in based reset if desired */ },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Orange500
+                        ),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            brush = Brush.horizontalGradient(listOf(Orange500, Orange600))
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = "Continue with Google",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Back to Login
+                    TextButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Back to Login",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = Orange500,
+                                fontWeight = FontWeight.Medium
+                            )
+                        )
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // OR Divider and Google Sign-in option
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+            } else {
+                // Success Content
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                    )
+                    // Success Illustration
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        Success.copy(alpha = 0.2f),
+                                        Success.copy(alpha = 0.1f)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "✓",
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                color = Success,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
                     Text(
-                        text = "OR",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        text = "Check Your Email",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        ),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "We have sent a password reset link to your email address. Please check your inbox and follow the instructions.",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 24.sp
                         ),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                    )
-                }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(40.dp))
 
-                // Google Sign In for password reset
-                OutlinedButton(
-                    onClick = {
-                        // TODO: Implement Google sign-in for password reset with real token
-                        // Currently simulating with dummy token for UI demo
-//                        authViewModel.signInWithGoogle("demo_google_token_placeholder")
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Orange500
-                    ),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = Brush.horizontalGradient(listOf(Orange500, Orange600))
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    // Add Google icon here if you have it
-                    Text(
-                        text = "Continue with Google",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 15.sp
+                    Button(
+                        onClick = onResetComplete,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Orange500,
+                            contentColor = Color.White
                         )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Back to Login
-                TextButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Back to Login",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            color = Orange500,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
-                }
-            }
-        } else {
-            // Success Content
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Success Illustration
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    Success.copy(alpha = 0.2f),
-                                    Success.copy(alpha = 0.1f)
-                                )
+                    ) {
+                        Text(
+                            text = "Back to Login",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "✓",
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            color = Success,
-                            fontWeight = FontWeight.Bold
                         )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    text = "Check Your Email",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    ),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "We have sent a password reset link to your email address. Please check your inbox and follow the instructions.",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 24.sp
-                    ),
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                Button(
-                    onClick = onResetComplete,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Orange500,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Back to Login",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp
-                        )
-                    )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(40.dp))
+        }
     }
 }

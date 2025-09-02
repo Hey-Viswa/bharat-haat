@@ -79,10 +79,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     is UiState.Error -> {
-                        val isRefreshing by mainViewModel.isRefreshing.collectAsStateWithLifecycle()
                         NoInternetScreen(
-                            isRefreshing = isRefreshing,
-                            onRefresh = { mainViewModel.forceRefresh() }
+                            onRetry = { mainViewModel.forceRefresh() }
                         )
                     }
                 }

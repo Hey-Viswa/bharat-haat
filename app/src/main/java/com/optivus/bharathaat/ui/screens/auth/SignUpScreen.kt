@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -42,7 +41,6 @@ import com.optivus.bharathaat.ui.viewmodels.AuthState
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 
@@ -50,10 +48,7 @@ import com.google.android.gms.common.api.ApiException
 fun SignupScreen(
     modifier: Modifier = Modifier,
     onSignUpSuccess: () -> Unit = {},
-    onGoogleSignInClick: () -> Unit = {},
-    onForgotPasswordClick: () -> Unit = {},
     onSignInClick: () -> Unit = {},
-    onPhoneSignUpClick: () -> Unit = {},
     signupViewModel: SignupViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -65,10 +60,8 @@ fun SignupScreen(
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     val signupState by signupViewModel.signupState.collectAsStateWithLifecycle()
-    val formValidation by signupViewModel.formValidation.collectAsStateWithLifecycle()
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
 
     // Google Sign-In Activity Result Launcher
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -80,7 +73,7 @@ fun SignupScreen(
                 val account = task.getResult(ApiException::class.java)
                 // Sign up with Firebase using the Google account (this creates new account or signs in existing)
                 authViewModel.signInWithGoogle(account)
-            } catch (e: ApiException) {
+            } catch (_: ApiException) {
                 // Handle sign-in error
                 authViewModel.clearError()
             }
@@ -199,7 +192,7 @@ fun SignupScreen(
                     )
                 }
 
-                // Form Section - Remove error card display
+                // Form Section
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -323,36 +316,6 @@ fun SignupScreen(
                         fontWeight = FontWeight.Medium
                     )
 
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Phone Sign Up Button
-                    OutlinedButton(
-                        onClick = onPhoneSignUpClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = OrangeAccent
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            brush = Brush.horizontalGradient(listOf(OrangeAccent, Orange500))
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Phone,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Continue with Phone",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
 
                     Spacer(modifier = Modifier.height(32.dp))
 

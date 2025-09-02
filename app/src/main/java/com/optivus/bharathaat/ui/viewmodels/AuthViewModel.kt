@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -390,17 +393,72 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
+     * Send password reset email.
+     */
+    fun sendPasswordReset(email: String) {
+        viewModelScope.launch {
+            try {
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    _authState.value = AuthState.Error("No internet connection. Please check your network.")
+                    return@launch
+                }
+
+                val sanitizedEmail = StringUtils.trimAndClean(email)
+                val emailError = ValidationUtils.getEmailError(sanitizedEmail)
+                if (emailError != null) {
+                    _authState.value = AuthState.Error(emailError)
+                    return@launch
+                }
+
+                _authState.value = AuthState.Loading
+                firebaseAuth.sendPasswordResetEmail(sanitizedEmail).await()
+                _authState.value = AuthState.PasswordResetEmailSent
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(getFirebaseErrorMessage(e))
+            }
+        }
+    }
+
+    /**
      * Get user-friendly error messages from Firebase exceptions
      * Uses: StringUtils for message formatting
      */
     private fun getFirebaseErrorMessage(exception: Exception): String {
-        return when (exception.message) {
-            "The email address is badly formatted." -> "Please enter a valid email address"
-            "The password is invalid or the user does not have a password." -> "Invalid email or password"
-            "There is no user record corresponding to this identifier." -> "No account found with this email"
-            "The email address is already in use by another account." -> "An account with this email already exists"
-            "The password is too weak." -> "Password is too weak. Please choose a stronger password"
-            else -> exception.message ?: "Authentication failed"
+        when (exception) {
+            is FirebaseAuthInvalidUserException -> {
+                return when (exception.errorCode) {
+                    "ERROR_USER_NOT_FOUND" -> "No account found with this email"
+                    "ERROR_USER_DISABLED" -> "This account has been disabled"
+                    else -> exception.localizedMessage ?: "Authentication failed"
+                }
+            }
+            is FirebaseAuthInvalidCredentialsException -> {
+                return when (exception.errorCode) {
+                    "ERROR_INVALID_EMAIL" -> "Please enter a valid email address"
+                    "ERROR_WRONG_PASSWORD" -> "Invalid email or password"
+                    else -> "Invalid email or password"
+                }
+            }
+            is FirebaseAuthException -> {
+                return when (exception.errorCode) {
+                    "ERROR_INVALID_EMAIL" -> "Please enter a valid email address"
+                    "ERROR_EMAIL_ALREADY_IN_USE" -> "An account with this email already exists"
+                    "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please try again later"
+                    "ERROR_NETWORK_REQUEST_FAILED" -> "Network error. Please check your connection"
+                    else -> exception.localizedMessage ?: "Authentication failed"
+                }
+            }
+            else -> {
+                // Fallback to legacy message mapping
+                return when (exception.message) {
+                    "The email address is badly formatted." -> "Please enter a valid email address"
+                    "The password is invalid or the user does not have a password." -> "Invalid email or password"
+                    "There is no user record corresponding to this identifier." -> "No account found with this email"
+                    "The email address is already in use by another account." -> "An account with this email already exists"
+                    "The password is too weak." -> "Password is too weak. Please choose a stronger password"
+                    else -> exception.message ?: "Authentication failed"
+                }
+            }
         }
     }
 
@@ -416,5 +474,6 @@ sealed class AuthState {
     object Loading : AuthState()
     object Authenticated : AuthState()
     object Unauthenticated : AuthState()
+    object PasswordResetEmailSent : AuthState()
     data class Error(val message: String) : AuthState()
 }

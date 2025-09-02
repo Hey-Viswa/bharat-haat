@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -31,26 +32,37 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.optivus.bharathaat.ui.theme.*
-import kotlinx.coroutines.delay
+import com.optivus.bharathaat.ui.viewmodels.PhoneAuthViewModel
+import com.optivus.bharathaat.ui.viewmodels.PhoneAuthViewModel.UiState
+import android.app.Activity
+import android.content.Context
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 
 @Composable
 fun OTPVerificationScreen(
     phoneNumber: String,
     onOTPVerified: () -> Unit,
     onResendOTP: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: PhoneAuthViewModel = hiltViewModel()
 ) {
-    var otp by remember { mutableStateOf(List(4) { "" }) }
-    var isVerifying by remember { mutableStateOf(false) }
-    var showError by remember { mutableStateOf(false) }
+    val digits = 6
+    var otp by remember { mutableStateOf(List(digits) { "" }) }
     var timeLeft by remember { mutableStateOf(60) }
     var canResend by remember { mutableStateOf(false) }
     var startAnimation by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val focusRequesters = remember { List(4) { FocusRequester() } }
+    val focusRequesters = remember { List(digits) { FocusRequester() } }
+    val context = LocalContext.current
+
+    val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Animation states
     val contentAlpha = animateFloatAsState(
@@ -89,7 +101,7 @@ fun OTPVerificationScreen(
     LaunchedEffect(Unit) {
         startAnimation = true
         repeat(60) {
-            delay(1000)
+            kotlinx.coroutines.delay(1000)
             timeLeft = 60 - it - 1
             if (timeLeft == 0) {
                 canResend = true
@@ -97,248 +109,225 @@ fun OTPVerificationScreen(
         }
     }
 
-    // Auto-verify when all digits are entered
-    LaunchedEffect(otp) {
-        if (otp.all { it.isNotEmpty() }) {
-            isVerifying = true
-            delay(1500) // Simulate verification
-
-            // For UI demo, consider OTP valid if it's "1234"
-            if (otp.joinToString("") == "1234") {
-                onOTPVerified()
-            } else {
-                showError = true
-                isVerifying = false
-                // Clear OTP after error
-                delay(1000)
-                otp = List(4) { "" }
-                showError = false
-                focusRequesters[0].requestFocus()
-            }
+    // React to UI state
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is UiState.Success -> onOTPVerified()
+            is UiState.Error -> snackbarHostState.showSnackbar((uiState as UiState.Error).message)
+            else -> Unit
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(animatedGradient)
-            .verticalScroll(scrollState)
-            .padding(24.dp)
-            .alpha(contentAlpha.value)
-            .graphicsLayer { translationY = contentOffset.value }
-    ) {
-        // Top App Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+    // Auto-verify when all digits are entered
+    LaunchedEffect(otp) {
+        if (otp.all { it.isNotEmpty() }) {
+            keyboardController?.hide()
+            viewModel.verifyOtp(otp.joinToString(""))
         }
+    }
 
-        Spacer(modifier = Modifier.height(32.dp))
+    val isVerifying = uiState is UiState.Verifying || uiState is UiState.AutoVerifying
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxSize()
+                .background(animatedGradient)
+                .verticalScroll(scrollState)
+                .padding(24.dp)
+                .padding(padding)
+                .alpha(contentAlpha.value)
+                .graphicsLayer { translationY = contentOffset.value }
         ) {
-            // Illustration
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Orange200.copy(alpha = 0.3f),
-                                Orange100.copy(alpha = 0.1f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Phone,
-                    contentDescription = "Phone",
-                    modifier = Modifier.size(48.dp),
-                    tint = Orange500
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Title
-            Text(
-                text = "Verify Phone Number",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Subtitle
-            Text(
-                text = "We've sent a 4-digit verification code to",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center
-                )
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = phoneNumber,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = Orange500
-                ),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // OTP Input Fields
+            // Top App Bar
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(4) { index ->
-                    OTPDigitField(
-                        value = otp[index],
-                        onValueChange = { newValue ->
-                            if (newValue.length <= 1 && newValue.all { it.isDigit() }) {
-                                otp = otp.toMutableList().also { it[index] = newValue }
-
-                                // Auto-focus next field
-                                if (newValue.isNotEmpty() && index < 3) {
-                                    focusRequesters[index + 1].requestFocus()
-                                }
-                            }
-                        },
-                        isError = showError,
-                        focusRequester = focusRequesters[index],
-                        onBackspace = {
-                            if (otp[index].isEmpty() && index > 0) {
-                                focusRequesters[index - 1].requestFocus()
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Error Message
-            if (showError) {
-                Text(
-                    text = "Invalid OTP. Please try again.",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.error
-                    ),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Verify Button
-            Button(
-                onClick = {
-                    if (otp.all { it.isNotEmpty() }) {
-                        isVerifying = true
-                    }
-                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Orange500,
-                    contentColor = Color.White
-                ),
-                enabled = otp.all { it.isNotEmpty() } && !isVerifying
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isVerifying) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Verify OTP",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp
-                        )
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Resend Section
-            if (canResend) {
-                TextButton(
-                    onClick = {
-                        onResendOTP()
-                        canResend = false
-                        timeLeft = 60
-                        otp = List(4) { "" }
-                        focusRequesters[0].requestFocus()
-                    },
-                    modifier = Modifier.fillMaxWidth()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Illustration
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Orange200.copy(alpha = 0.3f),
+                                    Orange100.copy(alpha = 0.1f)
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Resend OTP",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            color = Orange500,
-                            fontWeight = FontWeight.Medium
-                        )
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = "Phone",
+                        modifier = Modifier.size(48.dp),
+                        tint = Orange500
                     )
                 }
-            } else {
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Title
                 Text(
-                    text = "Resend OTP in ${timeLeft}s",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    text = "Verify Phone Number",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     ),
                     textAlign = TextAlign.Center
                 )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Demo hint
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Orange100.copy(alpha = 0.3f)
-                )
-            ) {
+                // Subtitle with inline phone number (e.g., +91XXXXXXXXXX)
+                val displayNumber = remember(phoneNumber) {
+                    if (phoneNumber.startsWith("+")) phoneNumber else "+91$phoneNumber"
+                }
+
                 Text(
-                    text = "💡 Demo: Use '1234' as OTP for successful verification",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = Orange700,
+                    text = "We've sent a 6-digit verification code to $displayNumber",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // OTP Input Fields
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(digits) { index ->
+                        OTPDigitField(
+                            value = otp[index],
+                            onValueChange = { newValue ->
+                                if (newValue.length <= 1 && newValue.all { it.isDigit() }) {
+                                    otp = otp.toMutableList().also { it[index] = newValue }
+
+                                    // Auto-focus next field
+                                    if (newValue.isNotEmpty() && index < digits - 1) {
+                                        focusRequesters[index + 1].requestFocus()
+                                    }
+                                }
+                            },
+                            isError = uiState is UiState.Error,
+                            focusRequester = focusRequesters[index],
+                            onBackspace = {
+                                if (otp[index].isEmpty() && index > 0) {
+                                    focusRequesters[index - 1].requestFocus()
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Verify Button
+                Button(
+                    onClick = {
+                        if (otp.all { it.isNotEmpty() }) {
+                            viewModel.verifyOtp(otp.joinToString(""))
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Orange500,
+                        contentColor = Color.White
                     ),
-                    modifier = Modifier.padding(12.dp)
+                    enabled = otp.all { it.isNotEmpty() } && !isVerifying
+                ) {
+                    if (isVerifying) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Verify OTP",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Resend Section (cooldown visible and enforced)
+                if (canResend) {
+                    TextButton(
+                        onClick = {
+                            val activity = context.findActivity()
+                            viewModel.resendCode(activity)
+                            onResendOTP()
+                            canResend = false
+                            timeLeft = 60
+                            otp = List(digits) { "" }
+                            focusRequesters[0].requestFocus()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Resend OTP",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = Orange500,
+                                fontWeight = FontWeight.Medium
+                            )
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Resend OTP in ${'$'}{timeLeft}s",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        ),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Hint
+                Text(
+                    text = "Enter the 6-digit code from SMS",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
                 )
             }
         }
@@ -394,4 +383,10 @@ private fun OTPDigitField(
             }
         }
     )
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

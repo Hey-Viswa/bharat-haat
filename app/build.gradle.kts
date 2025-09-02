@@ -75,6 +75,7 @@ dependencies {
 
     // Google Play services library
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation("com.google.android.play:integrity:1.4.0")
 
     // ViewModel dependencies
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
@@ -94,6 +95,7 @@ dependencies {
 
     // Hilt for dependency injection
     implementation("com.google.dagger:hilt-android:2.56.2")
+    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
     ksp("com.google.dagger:hilt-android-compiler:2.56.2")
 
     // Hilt Navigation Compose
@@ -112,5 +114,7 @@ dependencies {
 
     // Accompanist Swipe to Refresh
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.31.0-alpha")
+
+
 
 }
