@@ -89,14 +89,11 @@ fun ForgotPasswordScreen(
         startAnimation = true
     }
 
-    // Handle auth state changes - Fix the AuthState.Success issue
+    // Handle auth state changes
     LaunchedEffect(authState) {
         when (authState) {
-            is AuthState.Authenticated -> {
-                // For demo purposes, simulate email sent
+            is AuthState.PasswordResetEmailSent -> {
                 isEmailSent = true
-                delay(2000)
-                onResetComplete()
             }
             else -> {}
         }
@@ -305,8 +302,7 @@ fun ForgotPasswordScreen(
                     Button(
                         onClick = {
                             if (email.isNotBlank()) {
-                                // For demo: simulate password reset
-                                isEmailSent = true
+                                authViewModel.sendPasswordResetEmail(email)
                             }
                         },
                         modifier = Modifier

@@ -347,6 +347,45 @@ class AuthViewModel @Inject constructor(
     /**
      * Get Google Sign-In client for launching sign-in intent
      */
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            try {
+                // 1. Check network connectivity
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    _authState.value = AuthState.Error("No internet connection. Please check your network.")
+                    return@launch
+                }
+
+                // 2. Sanitize and validate email
+                val sanitizedEmail = StringUtils.trimAndClean(email)
+                val emailError = ValidationUtils.getEmailError(sanitizedEmail)
+                if (emailError != null) {
+                    _authState.value = AuthState.Error(emailError)
+                    return@launch
+                }
+
+                _authState.value = AuthState.Loading
+
+                // 3. Send password reset email using Firebase
+                firebaseAuth.sendPasswordResetEmail(sanitizedEmail)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            _authState.value = AuthState.PasswordResetEmailSent
+                        } else {
+                            val errorMessage = getFirebaseErrorMessage(task.exception ?: Exception("Password reset failed"))
+                            _authState.value = AuthState.Error(errorMessage)
+                        }
+                    }
+
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(getFirebaseErrorMessage(e))
+            }
+        }
+    }
+
+    /**
+     * Get Google Sign-In client for launching sign-in intent
+     */
     fun getGoogleSignInClient() = googleAuthService.getSignInClient()
 
     /**
@@ -416,5 +455,6 @@ sealed class AuthState {
     object Loading : AuthState()
     object Authenticated : AuthState()
     object Unauthenticated : AuthState()
+    object PasswordResetEmailSent : AuthState()
     data class Error(val message: String) : AuthState()
 }
