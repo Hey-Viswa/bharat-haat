@@ -21,34 +21,33 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.optivus.bharathaat.ui.theme.*
 
 @Composable
 fun SplashScreen(
-    onNavigateToOnboarding: () -> Unit,
-    onNavigateToNoInternet: () -> Unit,
-    viewModel: SplashViewModel = hiltViewModel()
+    onNavigateToAuth: () -> Unit,
+    onNavigateToHome: () -> Unit,
+    onNavigateToNoInternet: () -> Unit
 ) {
     var startAnimation by remember { mutableStateOf(false) }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    
-    // Handle navigation based on ViewModel state
-    LaunchedEffect(uiState.navigationTarget) {
-        when (uiState.navigationTarget) {
-            NavigationTarget.ONBOARDING -> {
-                onNavigateToOnboarding()
-                viewModel.onNavigationHandled()
-            }
-            NavigationTarget.NO_INTERNET -> {
-                onNavigateToNoInternet()
-                viewModel.onNavigationHandled()
-            }
-            null -> {
-                // Still loading or no navigation needed yet
-            }
+
+    // Handle navigation after a delay (simplified without ViewModel)
+    LaunchedEffect(Unit) {
+        try {
+            // Simulate network/auth check
+            kotlinx.coroutines.delay(2000)
+            // For e-commerce flow, go directly to home (product browsing)
+            onNavigateToHome()
+        } catch (e: Exception) {
+            // If there's an error (network issues), show no internet screen
+            onNavigateToNoInternet()
         }
+    }
+
+    // Start animations
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(300)
+        startAnimation = true
     }
 
     // Multiple animation states for breathtaking effect
@@ -125,11 +124,6 @@ fun SplashScreen(
         ),
         radius = 800f + gradientAnimation.value * 200f
     )
-
-    LaunchedEffect(Unit) {
-        startAnimation = true
-        // Navigation is now handled by the ViewModel
-    }
 
     Box(
         modifier = Modifier

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme using AppCompat theme for better compatibility -->
+<resources>
+
     <style name="Base.Theme.BharatHaat" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Primary brand color -->
         <item name="colorPrimary">@color/orange_500</item>
@@ -21,6 +21,4 @@
         <!-- Window flags for edge-to-edge -->
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
-
-    <style name="Theme.BharatHaat" parent="Base.Theme.BharatHaat" />
 </resources>
