@@ -18,11 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,6 +41,7 @@ import com.optivus.bharathaat.data.models.UserData
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.unit.Dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,15 +89,13 @@ fun UserSettingsScreen(
     }
 
     // Animation states
-    val contentAlpha = animateFloatAsState(
+    val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(800, easing = FastOutSlowInEasing),
         label = "content_alpha"
     )
 
-    val contentOffset = animateFloatAsState(
+    val contentOffset by animateFloatAsState(
         targetValue = if (startAnimation) 0f else 50f,
-        animationSpec = tween(800, easing = FastOutSlowInEasing),
         label = "content_offset"
     )
 
@@ -122,27 +124,30 @@ fun UserSettingsScreen(
         if (!startAnimation) startAnimation = true
     }
 
-    // Handle profile state changes
+    // Handle profile state changes - only show snackbar for explicit user actions, not automatic saves
     LaunchedEffect(profileState) {
-        when (val state = profileState) {
+        when (profileState) {
             is ProfileState.Success -> {
-                snackbarHostState.showSnackbar("Profile updated successfully!")
+                // Only show success for personal details and address saves
                 isSavingPersonalDetails = false
                 isSavingAddress = false
+                // Don't show automatic success snackbar
             }
             is ProfileState.EmailUpdateSuccess -> {
                 snackbarHostState.showSnackbar("Email updated! Please verify your new email.")
             }
             is ProfileState.EmailVerificationSent -> {
+                isSavingPersonalDetails = false
+                isSavingAddress = false
                 snackbarHostState.showSnackbar("Verification email sent!")
             }
             is ProfileState.AccountDeleted -> {
                 onAccountDeleted()
             }
             is ProfileState.Error -> {
-                snackbarHostState.showSnackbar(state.message)
                 isSavingPersonalDetails = false
                 isSavingAddress = false
+                snackbarHostState.showSnackbar((profileState as ProfileState.Error).message)
             }
             else -> Unit
         }
@@ -248,8 +253,8 @@ fun UserSettingsScreen(
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(16.dp)
-                    .alpha(contentAlpha.value)
-                    .graphicsLayer { translationY = contentOffset.value }
+                    .alpha(contentAlpha)
+                    .graphicsLayer { translationY = contentOffset }
             ) {
                 userProfile?.let { profile ->
                     // Profile Picture Section
@@ -590,7 +595,7 @@ private fun PersonalDetailsSection(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Gender Radio Buttons
+            // Gender section with dotted styling
             Text(
                 text = "Gender",
                 fontSize = 14.sp,
@@ -601,71 +606,28 @@ private fun PersonalDetailsSection(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onGenderChange("Male") }
-                ) {
-                    RadioButton(
-                        selected = gender == "Male",
-                        onClick = { onGenderChange("Male") },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = Orange500,
-                            unselectedColor = Grey400
-                        )
-                    )
-                    Text(
-                        text = "Male",
-                        fontSize = 14.sp,
-                        color = Grey900,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
+                GenderOption(
+                    label = "Male",
+                    selected = gender == "Male",
+                    onClick = { onGenderChange("Male") },
+                    modifier = Modifier.weight(1f)
+                )
 
-                Spacer(modifier = Modifier.width(24.dp))
+                GenderOption(
+                    label = "Female",
+                    selected = gender == "Female",
+                    onClick = { onGenderChange("Female") },
+                    modifier = Modifier.weight(1f)
+                )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onGenderChange("Female") }
-                ) {
-                    RadioButton(
-                        selected = gender == "Female",
-                        onClick = { onGenderChange("Female") },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = Orange500,
-                            unselectedColor = Grey400
-                        )
-                    )
-                    Text(
-                        text = "Female",
-                        fontSize = 14.sp,
-                        color = Grey900,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onGenderChange("Other") }
-                ) {
-                    RadioButton(
-                        selected = gender == "Other",
-                        onClick = { onGenderChange("Other") },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = Orange500,
-                            unselectedColor = Grey400
-                        )
-                    )
-                    Text(
-                        text = "Other",
-                        fontSize = 14.sp,
-                        color = Grey900,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
+                GenderOption(
+                    label = "Other",
+                    selected = gender == "Other",
+                    onClick = { onGenderChange("Other") },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -717,6 +679,71 @@ private fun PersonalDetailsSection(
     }
 }
 
+@Composable
+private fun GenderOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+    val bgColor = if (selected) Orange100.copy(alpha = 0.6f) else Color.Transparent
+    val borderColor = if (selected) Orange500 else Grey400
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = bgColor,
+        tonalElevation = 0.dp,
+        modifier = modifier
+            .padding(2.dp)
+            .drawWithDashedBorder(
+                color = borderColor,
+                cornerRadius = 12.dp,
+                strokeWidth = 2.dp,
+                pathEffect = pathEffect
+            )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = Orange500,
+                    unselectedColor = Grey400
+                )
+            )
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                color = if (selected) Orange700 else Grey900,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+private fun Modifier.drawWithDashedBorder(
+    color: Color,
+    cornerRadius: Dp,
+    strokeWidth: Dp,
+    pathEffect: PathEffect
+): Modifier = this.then(
+    Modifier.drawBehind {
+        val stroke = DrawStroke(width = strokeWidth.toPx(), pathEffect = pathEffect)
+        drawRoundRect(
+            color = color,
+            size = this.size,
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius.toPx(), cornerRadius.toPx()),
+            style = stroke
+        )
+    }
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DatePickerField(
@@ -726,7 +753,6 @@ private fun DatePickerField(
     placeholder: String
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
 
     Column {
         OutlinedTextField(
@@ -738,15 +764,13 @@ private fun DatePickerField(
             trailingIcon = {
                 IconButton(onClick = { showDatePicker = true }) {
                     Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = "Select Date",
-                        tint = Orange500
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Select Date"
                     )
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Orange500,
-                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 focusedLabelColor = Orange500
             ),
             modifier = Modifier
@@ -907,7 +931,7 @@ private fun AddressInfoSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Address Details")
+                Text("Save Address")
             }
         }
     }
@@ -958,14 +982,14 @@ private fun SecuritySection(
                     Text(
                         text = if (profile.isEmailVerified) "Verified" else "Not Verified",
                         fontSize = 12.sp,
-                        color = if (profile.isEmailVerified) Color.Green else MaterialTheme.colorScheme.error
+                        color = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error
                     )
                 }
 
                 Icon(
                     imageVector = if (profile.isEmailVerified) Icons.Default.Verified else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = if (profile.isEmailVerified) Color.Green else MaterialTheme.colorScheme.error
+                    tint = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error
                 )
             }
 
@@ -1037,13 +1061,12 @@ private fun DangerZoneSection(
                 text = "Danger Zone",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             Text(
-                text = "Once you delete your account, there is no going back. Please be certain.",
+                text = "Permanently delete your account and all data",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
             )
@@ -1149,35 +1172,33 @@ private fun PhotoPreviewDialog(
                 .wrapContentHeight(),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp)
-                ) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = "Profile Picture Preview",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            ) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Profile Picture Preview",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
 
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .background(
-                                Color.Black.copy(alpha = 0.5f),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.White
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(
+                            Color.Black.copy(alpha = 0.5f),
+                            CircleShape
                         )
-                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White
+                    )
                 }
             }
         }

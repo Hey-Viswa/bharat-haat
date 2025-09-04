@@ -50,8 +50,6 @@ fun HomeScreen(
     val products by homeViewModel.products.collectAsStateWithLifecycle()
     val searchQuery by homeViewModel.searchQuery.collectAsStateWithLifecycle()
 
-    var showUserMenu by remember { mutableStateOf(false) }
-
     // Get user info from the current Firebase user
     val userInfo = remember(currentUser) {
         currentUser?.let { user ->
@@ -88,49 +86,23 @@ fun HomeScreen(
                 )
             },
             actions = {
-                // User Profile Button
-                Box {
-                    IconButton(onClick = { showUserMenu = !showUserMenu }) {
-                        if (userInfo?.photoUrl != null) {
-                            AsyncImage(
-                                model = userInfo.photoUrl,
-                                contentDescription = "Profile",
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.AccountCircle,
-                                contentDescription = "Profile",
-                                tint = OrangeAccent,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-
-                    DropdownMenu(
-                        expanded = showUserMenu,
-                        onDismissRequest = { showUserMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("View Profile") },
-                            onClick = {
-                                showUserMenu = false
-                                onNavigateToProfile()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+                // User Profile Button -> navigate directly to Settings screen
+                IconButton(onClick = { onNavigateToProfile() }) {
+                    if (userInfo?.photoUrl != null) {
+                        AsyncImage(
+                            model = userInfo.photoUrl,
+                            contentDescription = "Profile",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Sign Out") },
-                            onClick = {
-                                showUserMenu = false
-                                authViewModel.signOut()
-                                onLogout()
-                            },
-                            leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null) }
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Profile",
+                            tint = OrangeAccent,
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }

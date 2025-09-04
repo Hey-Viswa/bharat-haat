@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.google.firebase.auth.FirebaseAuth
 import com.optivus.bharathaat.ui.theme.*
 import com.optivus.bharathaat.ui.viewmodels.ProfileState
 import com.optivus.bharathaat.ui.viewmodels.UserProfileViewModel
@@ -92,7 +91,7 @@ fun ProfileScreen(
 
     // Handle profile state changes - fixed to prevent unwanted redirects
     LaunchedEffect(profileState) {
-        when (val state = profileState) {
+        when (profileState) {
             is ProfileState.EmailVerificationSent -> {
                 snackbarHostState.showSnackbar("Verification email sent successfully!")
             }
@@ -169,7 +168,10 @@ fun ProfileScreen(
                         // Action Buttons
                         ProfileActionsSection(
                             onNavigateToSettings = onNavigateToSettings,
-                            onSignOut = { profileViewModel.signOut() }
+                            onSignOut = {
+                                profileViewModel.signOut()
+                                onSignOut()
+                            }
                         )
                     }
                 }

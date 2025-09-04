@@ -251,7 +251,8 @@ fun NavigationGraph(
                 },
                 onProductClick = { _ -> },
                 onNavigateToProfile = {
-                    navController.navigate(Screen.Profile.route)
+                    // Navigate directly to Settings per requirement
+                    navController.navigate(Screen.UserSettings.route)
                 }
             )
         }
