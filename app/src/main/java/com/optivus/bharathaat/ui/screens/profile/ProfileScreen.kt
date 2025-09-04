@@ -52,48 +52,35 @@ fun ProfileScreen(
     var startAnimation by remember { mutableStateOf(false) }
 
     // Animation states
-    val contentAlpha = animateFloatAsState(
+    val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(800, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 400),
         label = "content_alpha"
     )
 
-    val contentOffset = animateFloatAsState(
+    val contentOffset by animateFloatAsState(
         targetValue = if (startAnimation) 0f else 50f,
-        animationSpec = tween(800, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 400),
         label = "content_offset"
     )
 
     // Background gradient
-    val infiniteTransition = rememberInfiniteTransition(label = "bg_infinite")
-    val gradientAnimation = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bg_gradient"
-    )
-
     val animatedGradient = Brush.verticalGradient(
         colors = listOf(
-            MaterialTheme.colorScheme.background,
-            Orange100.copy(alpha = 0.1f + gradientAnimation.value * 0.05f),
-            MaterialTheme.colorScheme.background
+            AuthBackgroundStart,
+            AuthBackgroundEnd.copy(alpha = 0.1f)
         )
     )
 
     LaunchedEffect(Unit) {
         startAnimation = true
-        profileViewModel.loadUserProfile()
     }
 
-    // Handle profile state changes - fixed to prevent unwanted redirects
+    // Handle profile state changes
     LaunchedEffect(profileState) {
         when (profileState) {
-            is ProfileState.EmailVerificationSent -> {
-                snackbarHostState.showSnackbar("Verification email sent successfully!")
+            is ProfileState.Error -> {
+                snackbarHostState.showSnackbar((profileState as ProfileState.Error).message)
             }
             else -> Unit
         }
@@ -116,6 +103,15 @@ fun ProfileScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -148,31 +144,35 @@ fun ProfileScreen(
                         .fillMaxSize()
                         .verticalScroll(scrollState)
                         .padding(16.dp)
-                        .alpha(contentAlpha.value)
-                        .graphicsLayer { translationY = contentOffset.value }
+                        .alpha(contentAlpha)
+                        .graphicsLayer { translationY = contentOffset }
                 ) {
                     userProfile?.let { profile ->
-                        // Profile Header
-                        ProfileHeader(
-                            profile = profile,
-                            onVerifyEmail = { profileViewModel.sendEmailVerification() }
-                        )
+                        // Profile Header Section
+                        ProfileHeaderSection(profile = profile)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Profile Information Cards
-                        ProfileInfoSection(profile = profile)
+                        // Profile Information Sections
+                        PersonalInfoCard(profile = profile)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        AddressInfoCard(profile = profile)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        AccountInfoCard(profile = profile)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Action Buttons
-                        ProfileActionsSection(
+                        ActionButtonsSection(
                             onNavigateToSettings = onNavigateToSettings,
-                            onSignOut = {
-                                profileViewModel.signOut()
-                                onSignOut()
-                            }
+                            onSignOut = onSignOut
                         )
+
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
@@ -181,9 +181,8 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader(
-    profile: com.optivus.bharathaat.ui.viewmodels.UserProfile,
-    onVerifyEmail: () -> Unit
+private fun ProfileHeaderSection(
+    profile: com.optivus.bharathaat.ui.viewmodels.UserProfile
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -192,7 +191,7 @@ private fun ProfileHeader(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -200,9 +199,9 @@ private fun ProfileHeader(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Image
+            // Profile Picture
             Box(
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(120.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (profile.photoUrl != null) {
@@ -238,276 +237,381 @@ private fun ProfileHeader(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Name
+            // Display Name
             Text(
-                text = profile.displayName.ifEmpty { "User" },
+                text = profile.displayName,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Grey900,
                 textAlign = TextAlign.Center
             )
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Email
+            Text(
+                text = profile.email,
+                fontSize = 14.sp,
+                color = Grey600,
+                textAlign = TextAlign.Center
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Email with verification status
+            // Email Verification Status
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = profile.email,
-                    fontSize = 14.sp,
-                    color = Grey600
+                Icon(
+                    imageVector = if (profile.isEmailVerified) Icons.Default.Verified else Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(16.dp)
                 )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                if (profile.isEmailVerified) {
-                    Icon(
-                        imageVector = Icons.Default.Verified,
-                        contentDescription = "Verified",
-                        tint = Color(0xFF4CAF50).copy(alpha = 0.7f), // More subtle green
-                        modifier = Modifier.size(16.dp)
-                    )
-                } else {
-                    TextButton(
-                        onClick = onVerifyEmail,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "Verify",
-                            fontSize = 12.sp,
-                            color = Orange500
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (profile.isEmailVerified) "Verified" else "Not Verified",
+                    fontSize = 12.sp,
+                    color = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
-            // User ID
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "ID: ${profile.uid.take(8)}...",
-                fontSize = 12.sp,
-                color = Grey500
-            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Member Since
+            profile.creationTime?.let { creationTime ->
+                val date = Date(creationTime)
+                val formatter = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                Text(
+                    text = "Member since ${formatter.format(date)}",
+                    fontSize = 12.sp,
+                    color = Grey500
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ProfileInfoSection(
+private fun PersonalInfoCard(
     profile: com.optivus.bharathaat.ui.viewmodels.UserProfile
-) {
-    Column {
-        Text(
-            text = "Account Information",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Grey900,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        // Account Details
-        ProfileInfoCard(
-            icon = Icons.Default.Email,
-            title = "Email",
-            value = profile.email,
-            badge = if (profile.isEmailVerified) "Verified" else "Not Verified",
-            badgeColor = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ProfileInfoCard(
-            icon = Icons.Default.Phone,
-            title = "Phone",
-            value = profile.phoneNumber ?: "Not provided"
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ProfileInfoCard(
-            icon = Icons.Default.DateRange,
-            title = "Member Since",
-            value = profile.creationTime?.let {
-                SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(it))
-            } ?: "Unknown"
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ProfileInfoCard(
-            icon = Icons.Default.AccessTime,
-            title = "Last Sign In",
-            value = profile.lastSignInTime?.let {
-                SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", Locale.getDefault()).format(Date(it))
-            } ?: "Unknown"
-        )
-    }
-}
-
-@Composable
-private fun ProfileInfoCard(
-    icon: ImageVector,
-    title: String,
-    value: String,
-    badge: String? = null,
-    badgeColor: Color = Success
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(20.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = Orange500,
-                modifier = Modifier.size(24.dp)
+            Text(
+                text = "Personal Information",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Grey900,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 12.sp,
-                    color = Grey500,
-                    fontWeight = FontWeight.Medium
+            // Phone Number
+            if (!profile.phoneNumber.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.Phone,
+                    label = "Phone Number",
+                    value = profile.phoneNumber
                 )
-                Text(
-                    text = value,
-                    fontSize = 14.sp,
-                    color = Grey900,
-                    fontWeight = FontWeight.Medium
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Gender
+            if (!profile.gender.isNullOrBlank()) {
+                InfoRow(
+                    icon = if (profile.gender == "Male") Icons.Default.Male
+                    else if (profile.gender == "Female") Icons.Default.Female
+                    else Icons.Default.Person,
+                    label = "Gender",
+                    value = profile.gender
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Date of Birth
+            if (!profile.dateOfBirth.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.DateRange,
+                    label = "Date of Birth",
+                    value = profile.dateOfBirth
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Occupation
+            if (!profile.occupation.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.Work,
+                    label = "Occupation",
+                    value = profile.occupation
                 )
             }
 
-            badge?.let {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = badgeColor.copy(alpha = 0.1f)
-                ) {
-                    Text(
-                        text = it,
-                        fontSize = 10.sp,
-                        color = badgeColor,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
+            // Show empty state if no personal info
+            if (profile.phoneNumber.isNullOrBlank() &&
+                profile.gender.isNullOrBlank() &&
+                profile.dateOfBirth.isNullOrBlank() &&
+                profile.occupation.isNullOrBlank()) {
+                EmptyStateInfo(
+                    icon = Icons.Default.Person,
+                    message = "No personal information added yet"
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ProfileActionsSection(
-    onNavigateToSettings: () -> Unit,
-    onSignOut: () -> Unit
+private fun AddressInfoCard(
+    profile: com.optivus.bharathaat.ui.viewmodels.UserProfile
 ) {
-    Column {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "Address Information",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Grey900,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // Address
+            if (!profile.address.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.Home,
+                    label = "Address",
+                    value = profile.address
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // City
+            if (!profile.city.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.LocationCity,
+                    label = "City",
+                    value = profile.city
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // State
+            if (!profile.state.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.Map,
+                    label = "State",
+                    value = profile.state
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Pincode
+            if (!profile.pincode.isNullOrBlank()) {
+                InfoRow(
+                    icon = Icons.Default.Pin,
+                    label = "Pincode",
+                    value = profile.pincode
+                )
+            }
+
+            // Show empty state if no address info
+            if (profile.address.isNullOrBlank() &&
+                profile.city.isNullOrBlank() &&
+                profile.state.isNullOrBlank() &&
+                profile.pincode.isNullOrBlank()) {
+                EmptyStateInfo(
+                    icon = Icons.Default.LocationOn,
+                    message = "No address information added yet"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountInfoCard(
+    profile: com.optivus.bharathaat.ui.viewmodels.UserProfile
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "Account Information",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Grey900,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            InfoRow(
+                icon = Icons.Default.AccountCircle,
+                label = "User ID",
+                value = profile.uid.take(8) + "..."
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            profile.lastSignInTime?.let { lastSignIn ->
+                val date = Date(lastSignIn)
+                val formatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+                InfoRow(
+                    icon = Icons.Default.AccessTime,
+                    label = "Last Sign In",
+                    value = formatter.format(date)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Orange500,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Grey500,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                fontSize = 14.sp,
+                color = Grey900,
+                fontWeight = FontWeight.Normal
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateInfo(
+    icon: ImageVector,
+    message: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Grey400,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = "Actions",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Grey900,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        // Settings Button
-        ActionCard(
-            icon = Icons.Default.Settings,
-            title = "Settings",
-            subtitle = "Manage your account settings",
-            onClick = onNavigateToSettings,
-            isDestructive = false
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Sign Out Button - moved out of danger zone
-        ActionCard(
-            icon = Icons.AutoMirrored.Filled.ExitToApp,
-            title = "Sign Out",
-            subtitle = "Sign out of your account",
-            onClick = onSignOut,
-            isDestructive = false
+            text = message,
+            fontSize = 14.sp,
+            color = Grey400,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
         )
     }
 }
 
 @Composable
-private fun ActionCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    isDestructive: Boolean = false
+private fun ActionButtonsSection(
+    onNavigateToSettings: () -> Unit,
+    onSignOut: () -> Unit
 ) {
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDestructive)
-                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.08f)
-            else
-                MaterialTheme.colorScheme.surface
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        onClick = onClick
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Settings Button
+        Button(
+            onClick = onNavigateToSettings,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Orange500,
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (isDestructive) MaterialTheme.colorScheme.error else Orange500,
-                modifier = Modifier.size(24.dp)
+                imageVector = Icons.Default.Settings,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
             )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Edit Profile",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    color = if (isDestructive) MaterialTheme.colorScheme.error else Grey900,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 12.sp,
-                    color = if (isDestructive)
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                    else
-                        Grey500
-                )
-            }
-
+        // Sign Out Button
+        OutlinedButton(
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+            shape = RoundedCornerShape(12.dp)
+        ) {
             Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Navigate",
-                tint = if (isDestructive) MaterialTheme.colorScheme.error else Grey400,
-                modifier = Modifier.size(20.dp)
+                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Sign Out",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
             )
         }
     }

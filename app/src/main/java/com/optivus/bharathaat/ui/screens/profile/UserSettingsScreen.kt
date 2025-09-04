@@ -21,8 +21,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,6 +41,8 @@ import com.optivus.bharathaat.data.models.UserData
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.unit.Dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +77,7 @@ fun UserSettingsScreen(
     // Track saving states for different sections
     var isSavingPersonalDetails by remember { mutableStateOf(false) }
     var isSavingAddress by remember { mutableStateOf(false) }
+    val isUploadingPhoto by profileViewModel.isUploadingPhoto.collectAsStateWithLifecycle()
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -91,11 +94,13 @@ fun UserSettingsScreen(
     // Animation states
     val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
+        animationSpec = tween(durationMillis = 300),
         label = "content_alpha"
     )
 
     val contentOffset by animateFloatAsState(
         targetValue = if (startAnimation) 0f else 50f,
+        animationSpec = tween(durationMillis = 300),
         label = "content_offset"
     )
 
@@ -261,7 +266,8 @@ fun UserSettingsScreen(
                     ProfilePictureSection(
                         profile = profile,
                         onPickPhoto = { imagePicker.launch("image/*") },
-                        onPreviewPhoto = { if (profile.photoUrl != null) showPhotoPreview = true }
+                        onPreviewPhoto = { if (profile.photoUrl != null) showPhotoPreview = true },
+                        isUploadingPhoto = isUploadingPhoto
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -338,7 +344,8 @@ fun UserSettingsScreen(
 private fun ProfilePictureSection(
     profile: com.optivus.bharathaat.ui.viewmodels.UserProfile,
     onPickPhoto: () -> Unit,
-    onPreviewPhoto: () -> Unit
+    onPreviewPhoto: () -> Unit,
+    isUploadingPhoto: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -430,9 +437,20 @@ private fun ProfilePictureSection(
                 color = Grey500,
                 modifier = Modifier.clickable { onPickPhoto() }
             )
+
+            // Uploading indicator
+            if (isUploadingPhoto) {
+                Spacer(modifier = Modifier.height(8.dp))
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = Orange500,
+                    strokeWidth = 2.dp
+                )
+            }
         }
     }
 }
+
 
 @Composable
 private fun AccountInfoSection(
@@ -595,21 +613,22 @@ private fun PersonalDetailsSection(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Gender section with dotted styling
+            // Gender section with modern card-based styling
             Text(
                 text = "Gender",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = Grey900,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 12.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 GenderOption(
                     label = "Male",
+                    icon = Icons.Default.Male,
                     selected = gender == "Male",
                     onClick = { onGenderChange("Male") },
                     modifier = Modifier.weight(1f)
@@ -617,6 +636,7 @@ private fun PersonalDetailsSection(
 
                 GenderOption(
                     label = "Female",
+                    icon = Icons.Default.Female,
                     selected = gender == "Female",
                     onClick = { onGenderChange("Female") },
                     modifier = Modifier.weight(1f)
@@ -624,6 +644,7 @@ private fun PersonalDetailsSection(
 
                 GenderOption(
                     label = "Other",
+                    icon = Icons.Default.Person,
                     selected = gender == "Other",
                     onClick = { onGenderChange("Other") },
                     modifier = Modifier.weight(1f)
@@ -682,11 +703,11 @@ private fun PersonalDetailsSection(
 @Composable
 private fun GenderOption(
     label: String,
+    icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
     val bgColor = if (selected) Orange100.copy(alpha = 0.6f) else Color.Transparent
     val borderColor = if (selected) Orange500 else Grey400
 
@@ -697,11 +718,10 @@ private fun GenderOption(
         tonalElevation = 0.dp,
         modifier = modifier
             .padding(2.dp)
-            .drawWithDashedBorder(
+            .drawWithCardBorder(
                 color = borderColor,
                 cornerRadius = 12.dp,
-                strokeWidth = 2.dp,
-                pathEffect = pathEffect
+                strokeWidth = 2.dp
             )
     ) {
         Row(
@@ -709,14 +729,13 @@ private fun GenderOption(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            RadioButton(
-                selected = selected,
-                onClick = onClick,
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = Orange500,
-                    unselectedColor = Grey400
-                )
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (selected) Orange700 else Grey900,
+                modifier = Modifier.size(16.dp)
             )
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = label,
                 fontSize = 14.sp,
@@ -727,19 +746,17 @@ private fun GenderOption(
     }
 }
 
-private fun Modifier.drawWithDashedBorder(
+private fun Modifier.drawWithCardBorder(
     color: Color,
     cornerRadius: Dp,
-    strokeWidth: Dp,
-    pathEffect: PathEffect
+    strokeWidth: Dp
 ): Modifier = this.then(
     Modifier.drawBehind {
-        val stroke = DrawStroke(width = strokeWidth.toPx(), pathEffect = pathEffect)
         drawRoundRect(
             color = color,
             size = this.size,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius.toPx(), cornerRadius.toPx()),
-            style = stroke
+            style = Stroke(width = strokeWidth.toPx())
         )
     }
 )

@@ -106,17 +106,13 @@ class UserRepository @Inject constructor(
                 .child(PROFILE_IMAGES_PATH)
                 .child("${userId}_$timestamp.jpg")
 
-            // Upload the image
-            val uploadTask = imageRef.putFile(imageUri).await()
+            // Upload the image directly without checking task success
+            imageRef.putFile(imageUri).await()
 
-            // Verify upload was successful
-            if (uploadTask.task.isSuccessful) {
-                // Get download URL
-                val downloadUrl = imageRef.downloadUrl.await()
-                Result.success(downloadUrl.toString())
-            } else {
-                Result.failure(Exception("Upload task failed"))
-            }
+            // Get download URL after successful upload
+            val downloadUrl = imageRef.downloadUrl.await()
+            Result.success(downloadUrl.toString())
+
         } catch (e: Exception) {
             Result.failure(Exception("Failed to upload profile image: ${e.message}", e))
         }
