@@ -24,6 +24,20 @@ data class UserData(
     val state: String? = null,
     val pincode: String? = null,
     val occupation: String? = null,
+
+    // Enhanced fields for marketplace
+    val role: String = "buyer", // "buyer" or "seller"
+    @get:PropertyName("business_name") @set:PropertyName("business_name")
+    var businessName: String? = null,
+    @get:PropertyName("business_description") @set:PropertyName("business_description")
+    var businessDescription: String? = null,
+    @get:PropertyName("business_address") @set:PropertyName("business_address")
+    var businessAddress: String? = null,
+    @get:PropertyName("business_phone") @set:PropertyName("business_phone")
+    var businessPhone: String? = null,
+    @get:PropertyName("is_verified_seller") @set:PropertyName("is_verified_seller")
+    var isVerifiedSeller: Boolean = false,
+
     @get:PropertyName("created_at") @set:PropertyName("created_at")
     var createdAt: Long = 0L,
     @get:PropertyName("updated_at") @set:PropertyName("updated_at")

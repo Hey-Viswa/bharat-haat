@@ -3,184 +3,276 @@ package com.optivus.bharathaat.data.repository
 import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import com.optivus.bharathaat.data.local.dao.UserDao
+import com.optivus.bharathaat.data.local.entities.toEntity
+import com.optivus.bharathaat.data.local.entities.toUserData
 import com.optivus.bharathaat.data.models.UserData
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UserRepository @Inject constructor(
+    private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
-    private val auth: FirebaseAuth
+    private val userDao: UserDao
 ) {
 
-    companion object {
-        private const val USERS_COLLECTION = "users"
-        private const val PROFILE_IMAGES_PATH = "profile_images"
-    }
-
     /**
-     * Save or update user data in Firestore
+     * Get current user profile with offline support
      */
-    suspend fun saveUserData(userData: UserData): Result<Unit> {
-        return try {
-            val userId = auth.currentUser?.uid
-                ?: return Result.failure(Exception("User not authenticated"))
-
-            val updatedData = userData.copy(
-                uid = userId,
-                updatedAt = System.currentTimeMillis()
-            )
-
-            firestore.collection(USERS_COLLECTION)
-                .document(userId)
-                .set(updatedData)
-                .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to save user data: ${e.message}", e))
-        }
-    }
-
-    /**
-     * Get user data from Firestore
-     */
-    suspend fun getUserData(): Result<UserData?> {
-        return try {
-            val userId = auth.currentUser?.uid
-                ?: return Result.failure(Exception("User not authenticated"))
-
-            val document = firestore.collection(USERS_COLLECTION)
-                .document(userId)
-                .get()
-                .await()
-
-            if (document.exists()) {
-                val userData = document.toObject(UserData::class.java)
-                Result.success(userData)
-            } else {
-                Result.success(null)
-            }
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to get user data: ${e.message}", e))
-        }
-    }
-
-    /**
-     * Update specific fields of user data
-     */
-    suspend fun updateUserData(updates: Map<String, Any>): Result<Unit> {
-        return try {
-            val userId = auth.currentUser?.uid
-                ?: return Result.failure(Exception("User not authenticated"))
-
-            val updatesWithTimestamp = updates.toMutableMap().apply {
-                put("updated_at", System.currentTimeMillis())
-            }
-
-            firestore.collection(USERS_COLLECTION)
-                .document(userId)
-                .update(updatesWithTimestamp)
-                .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to update user data: ${e.message}", e))
-        }
-    }
-
-    /**
-     * Upload profile image to Firebase Storage and return download URL
-     */
-    suspend fun uploadProfileImage(imageUri: Uri): Result<String> {
-        return try {
-            val userId = auth.currentUser?.uid
-                ?: return Result.failure(Exception("User not authenticated"))
-
-            // Create a unique filename with timestamp to avoid conflicts
-            val timestamp = System.currentTimeMillis()
-            val imageRef = storage.reference
-                .child(PROFILE_IMAGES_PATH)
-                .child("${userId}_$timestamp.jpg")
-
-            // Upload the image directly without checking task success
-            imageRef.putFile(imageUri).await()
-
-            // Get download URL after successful upload
-            val downloadUrl = imageRef.downloadUrl.await()
-            Result.success(downloadUrl.toString())
-
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to upload profile image: ${e.message}", e))
-        }
-    }
-
-    /**
-     * Create initial user data in Firestore
-     */
-    suspend fun createInitialUserData(
-        uid: String,
-        displayName: String,
-        email: String,
-        photoUrl: String? = null
-    ): Result<Unit> {
-        return try {
-            val currentTime = System.currentTimeMillis()
-            val userData = UserData(
-                uid = uid,
-                displayName = displayName,
-                email = email,
-                photoUrl = photoUrl,
-                isEmailVerified = auth.currentUser?.isEmailVerified ?: false,
-                createdAt = currentTime,
-                updatedAt = currentTime
-            )
-
-            firestore.collection(USERS_COLLECTION)
-                .document(uid)
-                .set(userData)
-                .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to create initial user data: ${e.message}", e))
-        }
-    }
-
-    /**
-     * Delete user data from Firestore and Storage
-     */
-    suspend fun deleteUserData(): Result<Unit> {
-        return try {
-            val userId = auth.currentUser?.uid
-                ?: return Result.failure(Exception("User not authenticated"))
-
-            // Delete user document from Firestore
-            firestore.collection(USERS_COLLECTION)
-                .document(userId)
-                .delete()
-                .await()
-
-            // Delete profile images from Storage if they exist
+    fun getCurrentUserProfile(): Flow<UserData?> = flow {
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser != null) {
             try {
-                val profileImagesRef = storage.reference.child(PROFILE_IMAGES_PATH)
-                val items = profileImagesRef.listAll().await()
+                // Try to get from Firestore first
+                val firestoreUser = firestore.collection("users")
+                    .document(currentUser.uid)
+                    .get()
+                    .await()
+                    .toObject(UserData::class.java)
 
-                items.items.forEach { item ->
-                    if (item.name.startsWith(userId)) {
-                        item.delete().await()
-                    }
+                firestoreUser?.let {
+                    // Cache in Room
+                    userDao.insertUser(it.toEntity())
+                    emit(it)
+                    return@flow
                 }
             } catch (e: Exception) {
-                // Images might not exist, continue with success
+                // If network fails, get from local cache
+                val cachedUser = userDao.getUserById(currentUser.uid)
+                cachedUser?.let {
+                    emit(it.toUserData())
+                    return@flow
+                }
             }
+        }
+        emit(null)
+    }
 
-            Result.success(Unit)
+    /**
+     * Save user profile after signup/login
+     */
+    suspend fun saveUserProfile(userData: UserData): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val userWithTimestamp = userData.copy(
+                    uid = currentUser.uid,
+                    email = currentUser.email ?: userData.email,
+                    displayName = currentUser.displayName ?: userData.displayName,
+                    isEmailVerified = currentUser.isEmailVerified,
+                    createdAt = if (userData.createdAt == 0L) System.currentTimeMillis() else userData.createdAt,
+                    updatedAt = System.currentTimeMillis()
+                )
+
+                // Save to Firestore
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .set(userWithTimestamp)
+                    .await()
+
+                // Cache locally
+                userDao.insertUser(userWithTimestamp.toEntity())
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
         } catch (e: Exception) {
-            Result.failure(Exception("Failed to delete user data: ${e.message}", e))
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update user profile
+     */
+    suspend fun updateUserProfile(userData: UserData): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null && currentUser.uid == userData.uid) {
+                val updatedData = userData.copy(updatedAt = System.currentTimeMillis())
+
+                // Update in Firestore
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .set(updatedData)
+                    .await()
+
+                // Update local cache
+                userDao.updateUser(updatedData.toEntity())
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Unauthorized"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Upload profile photo
+     */
+    suspend fun uploadProfilePhoto(uri: Uri): Result<String> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val ref = storage.reference
+                    .child("users")
+                    .child(currentUser.uid)
+                    .child("profile")
+                    .child("profile_${System.currentTimeMillis()}.jpg")
+
+                val uploadTask = ref.putFile(uri).await()
+                val downloadUrl = uploadTask.storage.downloadUrl.await()
+
+                Result.success(downloadUrl.toString())
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get sellers for public display
+     */
+    suspend fun getVerifiedSellers(limit: Int = 50): Result<List<UserData>> {
+        return try {
+            val sellers = firestore.collection("users")
+                .whereEqualTo("role", "seller")
+                .whereEqualTo("is_verified_seller", true)
+                .orderBy("created_at", Query.Direction.DESCENDING)
+                .limit(limit.toLong())
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.toObject(UserData::class.java) }
+
+            Result.success(sellers)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update display name
+     */
+    suspend fun updateDisplayName(newDisplayName: String): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                // Update in Firebase Auth
+                val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                    .setDisplayName(newDisplayName)
+                    .build()
+                currentUser.updateProfile(profileUpdates).await()
+
+                // Update in Firestore
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .update(
+                        mapOf(
+                            "display_name" to newDisplayName,
+                            "updated_at" to System.currentTimeMillis()
+                        )
+                    )
+                    .await()
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update email address
+     */
+    suspend fun updateEmail(newEmail: String): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                // Update email in Firebase Auth
+                currentUser.updateEmail(newEmail).await()
+
+                // Update in Firestore
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .update(
+                        mapOf(
+                            "email" to newEmail,
+                            "is_email_verified" to false,
+                            "updated_at" to System.currentTimeMillis()
+                        )
+                    )
+                    .await()
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Send email verification
+     */
+    suspend fun sendEmailVerification(): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                currentUser.sendEmailVerification().await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Check email verification status
+     */
+    suspend fun checkEmailVerificationStatus(): Result<Boolean> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                currentUser.reload().await()
+                val isVerified = currentUser.isEmailVerified
+
+                if (isVerified) {
+                    // Update Firestore
+                    firestore.collection("users")
+                        .document(currentUser.uid)
+                        .update(
+                            mapOf(
+                                "is_email_verified" to true,
+                                "updated_at" to System.currentTimeMillis()
+                            )
+                        )
+                        .await()
+                }
+
+                Result.success(isVerified)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

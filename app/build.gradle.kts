@@ -118,6 +118,14 @@ dependencies {
     // Accompanist Swipe to Refresh
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.31.0-alpha")
 
+    // Room database for offline support
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 
+    // Work Manager for background sync
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:2.56.2")
 
 }
