@@ -251,7 +251,7 @@ class UserProfileViewModel @Inject constructor(
 
                 // Update local profile
                 _userProfile.value = _userProfile.value?.copy(displayName = sanitizedName)
-                _profileState.value = ProfileState.Success
+                _profileState.value = ProfileState.DisplayNameUpdateSuccess
 
             } catch (e: Exception) {
                 _profileState.value = ProfileState.Error(e.message ?: "Failed to update name")
@@ -483,7 +483,7 @@ class UserProfileViewModel @Inject constructor(
                         pincode = userData.pincode
                     )
                     
-                    _profileState.value = ProfileState.Success
+                    _profileState.value = ProfileState.PersonalDetailsUpdateSuccess
                     
                     // Background verification - don't block UI on this
                     launch {
@@ -562,7 +562,7 @@ class UserProfileViewModel @Inject constructor(
 
                         // Update local profile
                         _userProfile.value = _userProfile.value?.copy(photoUrl = downloadUrl)
-                        _profileState.value = ProfileState.Success
+                        _profileState.value = ProfileState.PhotoUpdateSuccess
                     } else {
                         _profileState.value = ProfileState.Error("Failed to get download URL")
                     }
@@ -576,6 +576,68 @@ class UserProfileViewModel @Inject constructor(
                 _profileState.value = ProfileState.Error(e.message ?: "Failed to update profile photo")
             } finally {
                 _isUploadingPhoto.value = false
+            }
+        }
+    }
+
+    /**
+     * Update address data specifically
+     */
+    fun updateAddressData(userData: UserData) {
+        viewModelScope.launch {
+            try {
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    _profileState.value = ProfileState.Error("No internet connection")
+                    return@launch
+                }
+
+                _profileState.value = ProfileState.Loading
+
+                val currentUser = firebaseAuth.currentUser
+                if (currentUser == null) {
+                    _profileState.value = ProfileState.Error("No user signed in")
+                    return@launch
+                }
+
+                // Save complete user data to Firestore with enhanced error handling
+                val result = userRepository.saveUserData(userData)
+
+                if (result.isSuccess) {
+                    // Immediately update local profile for responsive UI
+                    _userProfile.value = _userProfile.value?.copy(
+                        address = userData.address,
+                        city = userData.city,
+                        state = userData.state,
+                        pincode = userData.pincode
+                    )
+                    
+                    _profileState.value = ProfileState.AddressUpdateSuccess
+                    
+                    // Background verification - don't block UI on this
+                    launch {
+                        kotlinx.coroutines.delay(200) // Minimal delay for Firestore consistency
+                        val verificationResult = userRepository.getUserData()
+                        if (verificationResult.isSuccess) {
+                            val savedData = verificationResult.getOrNull()
+                            savedData?.let { verified ->
+                                // Silently update with verified data if there are discrepancies
+                                _userProfile.value = _userProfile.value?.copy(
+                                    address = verified.address,
+                                    city = verified.city,
+                                    state = verified.state,
+                                    pincode = verified.pincode
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    _profileState.value = ProfileState.Error(
+                        result.exceptionOrNull()?.message ?: "Failed to update address"
+                    )
+                }
+
+            } catch (e: Exception) {
+                _profileState.value = ProfileState.Error(e.message ?: "Failed to update address")
             }
         }
     }
@@ -740,8 +802,12 @@ data class UserProfile(
 sealed class ProfileState {
     object Loading : ProfileState()
     object Success : ProfileState()
+    object DisplayNameUpdateSuccess : ProfileState()
+    object PersonalDetailsUpdateSuccess : ProfileState()
+    object AddressUpdateSuccess : ProfileState()
     object EmailUpdateSuccess : ProfileState()
     object EmailVerificationSent : ProfileState()
+    object PhotoUpdateSuccess : ProfileState()
     object AccountDeleted : ProfileState()
     object SignedOut : ProfileState()
     data class Error(val message: String) : ProfileState()

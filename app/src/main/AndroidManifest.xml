@@ -43,6 +43,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Debug activity for seeding sample data -->
+        <activity
+            android:name=".ui.debug.SeedDataActivity"
+            android:exported="false"
+            android:theme="@style/Theme.BharatHaat" />
+
         <!-- File provider for sharing images -->
         <provider
             android:name="androidx.core.content.FileProvider"

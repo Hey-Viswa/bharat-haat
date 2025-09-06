@@ -1,0 +1,360 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ====================
+    // HELPER FUNCTIONS
+    // ====================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+    
+    function hasValidUserData() {
+      return request.resource.data.keys().hasAll(['uid', 'display_name', 'email']) &&
+             request.resource.data.uid == request.auth.uid &&
+             request.resource.data.email == request.auth.token.email;
+    }
+    
+    function isValidRole() {
+      return request.resource.data.role in ['buyer', 'seller'];
+    }
+    
+    function isValidOrderStatus() {
+      return request.resource.data.status in [
+        'pending', 'confirmed', 'shipped', 'delivered', 
+        'cancelled', 'returned'
+      ];
+    }
+    
+    function isValidPaymentStatus() {
+      return request.resource.data.status in [
+        'pending', 'processing', 'completed', 'failed', 
+        'cancelled', 'refunded'
+      ];
+    }
+    
+    // ====================
+    // USER DATA COLLECTION
+    // ====================
+    
+    // Users collection with your exact UserData model fields
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+      
+      // Allow creation during registration with validation
+      allow create: if isAuthenticated() && 
+                       userId == request.auth.uid &&
+                       hasValidUserData() &&
+                       isValidRole() &&
+                       // Validate required UserData fields
+                       request.resource.data.keys().hasAll(['uid', 'display_name', 'email', 'role']) &&
+                       request.resource.data.created_at is number &&
+                       request.resource.data.updated_at is number;
+      
+      // Allow updates to own profile with comprehensive validation
+      allow update: if isOwner(userId) &&
+                       hasValidUserData() &&
+                       isValidRole() &&
+                       // Prevent changing immutable fields
+                       request.resource.data.uid == resource.data.uid &&
+                       request.resource.data.created_at == resource.data.created_at &&
+                       request.resource.data.updated_at > resource.data.updated_at &&
+                       // Validate business data for sellers
+                       (request.resource.data.role != 'seller' || 
+                        request.resource.data.business_name != null);
+      
+      // Prevent deletion of user profiles
+      allow delete: if false;
+    }
+    
+    // ====================
+    // PRODUCTS COLLECTION
+    // ====================
+    
+    // Products collection matching your Product model
+    match /products/{productId} {
+      // Anyone can read active products for browsing
+      allow read: if resource.data.is_active == true || 
+                     (isAuthenticated() && resource.data.seller_id == request.auth.uid);
+      
+      // Only authenticated sellers can create products
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.seller_id == request.auth.uid &&
+                       // Validate required Product fields
+                       request.resource.data.keys().hasAll([
+                         'product_id', 'seller_id', 'name', 'description', 
+                         'price', 'category', 'stock'
+                       ]) &&
+                       request.resource.data.price > 0 &&
+                       request.resource.data.stock >= 0 &&
+                       request.resource.data.created_at is number &&
+                       request.resource.data.updated_at is number;
+      
+      // Only product owner can update their products
+      allow update: if isAuthenticated() &&
+                       resource.data.seller_id == request.auth.uid &&
+                       request.resource.data.seller_id == request.auth.uid &&
+                       // Prevent changing immutable fields
+                       request.resource.data.product_id == resource.data.product_id &&
+                       request.resource.data.created_at == resource.data.created_at &&
+                       request.resource.data.updated_at > resource.data.updated_at &&
+                       // Validate price and stock
+                       request.resource.data.price > 0 &&
+                       request.resource.data.stock >= 0;
+      
+      // Only product owner can delete their products
+      allow delete: if isAuthenticated() &&
+                       resource.data.seller_id == request.auth.uid;
+    }
+    
+    // ====================
+    // ORDERS COLLECTION
+    // ====================
+    
+    // Orders collection with your Order model structure
+    match /orders/{orderId} {
+      // Users can read their own orders (buyer or seller)
+      allow read: if isAuthenticated() &&
+                     (resource.data.buyer_id == request.auth.uid ||
+                      resource.data.seller_id == request.auth.uid);
+      
+      // Only authenticated buyers can create orders
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.buyer_id == request.auth.uid &&
+                       // Validate required Order fields
+                       request.resource.data.keys().hasAll([
+                         'order_id', 'buyer_id', 'seller_id', 'product_id',
+                         'quantity', 'unit_price', 'total_amount', 'final_amount'
+                       ]) &&
+                       request.resource.data.quantity > 0 &&
+                       request.resource.data.unit_price > 0 &&
+                       request.resource.data.total_amount > 0 &&
+                       request.resource.data.final_amount > 0 &&
+                       isValidOrderStatus() &&
+                       request.resource.data.created_at is number &&
+                       request.resource.data.updated_at is number;
+      
+      // Buyers and sellers can update order status and tracking
+      allow update: if isAuthenticated() &&
+                       (resource.data.buyer_id == request.auth.uid ||
+                        resource.data.seller_id == request.auth.uid) &&
+                       // Prevent changing critical order details
+                       request.resource.data.order_id == resource.data.order_id &&
+                       request.resource.data.buyer_id == resource.data.buyer_id &&
+                       request.resource.data.seller_id == resource.data.seller_id &&
+                       request.resource.data.product_id == resource.data.product_id &&
+                       request.resource.data.quantity == resource.data.quantity &&
+                       request.resource.data.unit_price == resource.data.unit_price &&
+                       request.resource.data.created_at == resource.data.created_at &&
+                       request.resource.data.updated_at > resource.data.updated_at &&
+                       isValidOrderStatus();
+      
+      // No deletion of orders (audit trail)
+      allow delete: if false;
+    }
+    
+    // ====================
+    // PAYMENTS COLLECTION
+    // ====================
+    
+    // Payments collection with your Payment model
+    match /payments/{paymentId} {
+      // Users can read their own payments (buyer or seller)
+      allow read: if isAuthenticated() &&
+                     (resource.data.user_id == request.auth.uid ||
+                      resource.data.seller_id == request.auth.uid);
+      
+      // Only authenticated users can create payments
+      allow create: if isAuthenticated() &&
+                       request.resource.data.user_id == request.auth.uid &&
+                       // Validate required Payment fields
+                       request.resource.data.keys().hasAll([
+                         'payment_id', 'order_id', 'user_id', 'seller_id',
+                         'amount', 'currency', 'payment_method'
+                       ]) &&
+                       request.resource.data.amount > 0 &&
+                       request.resource.data.currency == 'INR' &&
+                       isValidPaymentStatus() &&
+                       request.resource.data.created_at is number &&
+                       request.resource.data.updated_at is number;
+      
+      // Payment gateway and system can update payment status
+      allow update: if isAuthenticated() &&
+                       (resource.data.user_id == request.auth.uid ||
+                        resource.data.seller_id == request.auth.uid) &&
+                       // Prevent changing critical payment details
+                       request.resource.data.payment_id == resource.data.payment_id &&
+                       request.resource.data.order_id == resource.data.order_id &&
+                       request.resource.data.user_id == resource.data.user_id &&
+                       request.resource.data.seller_id == resource.data.seller_id &&
+                       request.resource.data.amount == resource.data.amount &&
+                       request.resource.data.created_at == resource.data.created_at &&
+                       request.resource.data.updated_at > resource.data.updated_at &&
+                       isValidPaymentStatus();
+      
+      // No deletion of payments (audit trail)
+      allow delete: if false;
+    }
+    
+    // ====================
+    // SHOPPING CART
+    // ====================
+    
+    // Shopping carts (user-specific)
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Cart items subcollection
+      match /items/{itemId} {
+        allow read, write: if isOwner(userId) &&
+                             request.resource.data.user_id == request.auth.uid;
+      }
+    }
+    
+    // ====================
+    // WISHLIST
+    // ====================
+    
+    // Wishlists (user-specific)
+    match /wishlists/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Wishlist items subcollection
+      match /items/{itemId} {
+        allow read, write: if isOwner(userId) &&
+                             request.resource.data.user_id == request.auth.uid;
+      }
+    }
+    
+    // ====================
+    // REVIEWS & RATINGS
+    // ====================
+    
+    // Product reviews
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Only verified users can create reviews
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.user_id == request.auth.uid &&
+                       request.resource.data.keys().hasAll([
+                         'user_id', 'product_id', 'rating', 'review_text'
+                       ]) &&
+                       request.resource.data.rating >= 1 &&
+                       request.resource.data.rating <= 5 &&
+                       request.resource.data.created_at is number;
+      
+      // Users can update their own reviews
+      allow update: if isAuthenticated() &&
+                       resource.data.user_id == request.auth.uid &&
+                       request.resource.data.user_id == request.auth.uid &&
+                       request.resource.data.product_id == resource.data.product_id &&
+                       request.resource.data.rating >= 1 &&
+                       request.resource.data.rating <= 5;
+      
+      // Users can delete their own reviews
+      allow delete: if isAuthenticated() &&
+                       resource.data.user_id == request.auth.uid;
+    }
+    
+    // ====================
+    // USER ADDRESSES
+    // ====================
+    
+    // User shipping addresses
+    match /user_addresses/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Individual addresses subcollection
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId) &&
+                             request.resource.data.user_id == request.auth.uid;
+      }
+    }
+    
+    // ====================
+    // CATEGORIES
+    // ====================
+    
+    // Product categories (read-only for users)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if false; // Admin managed only
+    }
+    
+    // ====================
+    // APP METADATA
+    // ====================
+    
+    // App configuration and metadata
+    match /app_config/{document} {
+      allow read: if true;
+      allow write: if false; // Admin managed
+    }
+    
+    // ====================
+    // NOTIFICATIONS
+    // ====================
+    
+    // User notifications
+    match /notifications/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Individual notifications subcollection
+      match /user_notifications/{notificationId} {
+        allow read, write: if isOwner(userId) &&
+                             request.resource.data.user_id == request.auth.uid;
+      }
+    }
+    
+    // ====================
+    // ANALYTICS & REPORTS
+    // ====================
+    
+    // User activity analytics (write-only for privacy)
+    match /analytics/{userId} {
+      allow read: if false; // Privacy protection
+      allow write: if isOwner(userId);
+    }
+    
+    // Content reports
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.reporter_id == request.auth.uid &&
+                       request.resource.data.keys().hasAll([
+                         'reporter_id', 'content_type', 'content_id', 'reason'
+                       ]);
+      
+      // Users can read their own reports
+      allow read: if isAuthenticated() &&
+                     resource.data.reporter_id == request.auth.uid;
+      
+      allow update, delete: if false; // Immutable reports
+    }
+    
+    // ====================
+    // DEFAULT DENY
+    // ====================
+    
+    // Deny access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

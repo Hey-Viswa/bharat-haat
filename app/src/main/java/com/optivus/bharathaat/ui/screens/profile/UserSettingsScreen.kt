@@ -138,22 +138,27 @@ fun UserSettingsScreen(
     LaunchedEffect(profileState) {
         when (profileState) {
             is ProfileState.Success -> {
-                // Show success feedback for save operations
-                if (isSavingPersonalDetails) {
-                    snackbarHostState.showSnackbar("Personal details saved successfully!")
-                    isSavingPersonalDetails = false
-                }
-                if (isSavingAddress) {
-                    snackbarHostState.showSnackbar("Address information saved successfully!")
-                    isSavingAddress = false
-                }
+                // Generic success - shouldn't happen with new specific states
+                snackbarHostState.showSnackbar("Profile updated successfully!")
+            }
+            is ProfileState.DisplayNameUpdateSuccess -> {
+                snackbarHostState.showSnackbar("Display name updated successfully!")
+            }
+            is ProfileState.PersonalDetailsUpdateSuccess -> {
+                isSavingPersonalDetails = false
+                snackbarHostState.showSnackbar("Personal details saved successfully!")
+            }
+            is ProfileState.AddressUpdateSuccess -> {
+                isSavingAddress = false
+                snackbarHostState.showSnackbar("Address information saved successfully!")
+            }
+            is ProfileState.PhotoUpdateSuccess -> {
+                snackbarHostState.showSnackbar("Profile photo updated successfully!")
             }
             is ProfileState.EmailUpdateSuccess -> {
                 snackbarHostState.showSnackbar("Email updated! Please verify your new email.")
             }
             is ProfileState.EmailVerificationSent -> {
-                isSavingPersonalDetails = false
-                isSavingAddress = false
                 snackbarHostState.showSnackbar("Verification email sent!")
             }
             is ProfileState.AccountDeleted -> {
@@ -209,7 +214,7 @@ fun UserSettingsScreen(
                 state = state.takeIf { it.isNotBlank() },
                 pincode = pincode.takeIf { it.isNotBlank() }
             )
-            profileViewModel.updateUserData(updatedData)
+            profileViewModel.updateAddressData(updatedData)
         }
     }
 
@@ -283,9 +288,9 @@ fun UserSettingsScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // User ID and Account Overview Section
-                    // TODO: Add UserAccountOverviewSection(profile = profile)
+                    UserAccountOverviewSection(profile = profile)
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Account Information Section
                     AccountInfoSection(
@@ -299,7 +304,7 @@ fun UserSettingsScreen(
                         isUpdatingEmail = isUpdatingEmail
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Personal Details Section
                     PersonalDetailsSection(
@@ -315,7 +320,7 @@ fun UserSettingsScreen(
                         isSaving = isSavingPersonalDetails
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Address Information Section
                     AddressInfoSection(
@@ -331,7 +336,7 @@ fun UserSettingsScreen(
                         isSaving = isSavingAddress
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Security Section
                     SecuritySection(
@@ -341,7 +346,7 @@ fun UserSettingsScreen(
                         isLoading = profileState is ProfileState.Loading
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Danger Zone
                     DangerZoneSection(
@@ -507,20 +512,29 @@ private fun AccountInfoSection(
                 label = "Display Name",
                 placeholder = "Enter your display name",
                 leadingIcon = Icons.Default.Person,
+                validationType = com.optivus.bharathaat.ui.components.textfields.ValidationType.NAME,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
                 onClick = onUpdateDisplayName,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 enabled = !isUpdatingName && displayName.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Orange500,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = Orange500.copy(alpha = 0.6f)
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 2.dp,
+                    pressedElevation = 6.dp,
+                    disabledElevation = 0.dp
+                )
             ) {
                 if (isUpdatingName) {
                     CircularProgressIndicator(
@@ -530,7 +544,11 @@ private fun AccountInfoSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Update Name")
+                Text(
+                    text = "Update Display Name",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -543,20 +561,29 @@ private fun AccountInfoSection(
                 placeholder = "Enter your email address",
                 leadingIcon = Icons.Default.Email,
                 keyboardType = KeyboardType.Email,
+                validationType = com.optivus.bharathaat.ui.components.textfields.ValidationType.EMAIL,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
                 onClick = onUpdateEmail,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 enabled = !isUpdatingEmail && email.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Orange500,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = Orange500.copy(alpha = 0.6f)
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 2.dp,
+                    pressedElevation = 6.dp,
+                    disabledElevation = 0.dp
+                )
             ) {
                 if (isUpdatingEmail) {
                     CircularProgressIndicator(
@@ -566,16 +593,29 @@ private fun AccountInfoSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Update Email")
+                Text(
+                    text = "Update Email Address",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "⚠️ Changing email requires recent authentication and email verification",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.error,
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Warning text with consistent styling
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                ),
                 modifier = Modifier.fillMaxWidth()
-            )
+            ) {
+                Text(
+                    text = "⚠️ Changing email requires recent authentication and email verification",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
         }
     }
 }
@@ -623,47 +663,50 @@ private fun PersonalDetailsSection(
                 placeholder = "Enter your phone number",
                 leadingIcon = Icons.Default.Phone,
                 keyboardType = KeyboardType.Phone,
+                validationType = com.optivus.bharathaat.ui.components.textfields.ValidationType.PHONE,
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Gender section with modern card-based styling
-            Text(
-                text = "Gender",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Grey900,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                GenderOption(
-                    label = "Male",
-                    icon = Icons.Default.Male,
-                    selected = gender == "Male",
-                    onClick = { onGenderChange("Male") },
-                    modifier = Modifier.weight(1f)
+            // Gender selection with consistent styling
+            Column {
+                Text(
+                    text = "Gender",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Grey900,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                GenderOption(
-                    label = "Female",
-                    icon = Icons.Default.Female,
-                    selected = gender == "Female",
-                    onClick = { onGenderChange("Female") },
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    GenderOption(
+                        label = "Male",
+                        icon = Icons.Default.Male,
+                        selected = gender == "Male",
+                        onClick = { onGenderChange("Male") },
+                        modifier = Modifier.weight(1f)
+                    )
 
-                GenderOption(
-                    label = "Other",
-                    icon = Icons.Default.Person,
-                    selected = gender == "Other",
-                    onClick = { onGenderChange("Other") },
-                    modifier = Modifier.weight(1f)
-                )
+                    GenderOption(
+                        label = "Female",
+                        icon = Icons.Default.Female,
+                        selected = gender == "Female",
+                        onClick = { onGenderChange("Female") },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    GenderOption(
+                        label = "Other",
+                        icon = Icons.Default.Person,
+                        selected = gender == "Other",
+                        onClick = { onGenderChange("Other") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -685,6 +728,7 @@ private fun PersonalDetailsSection(
                 label = "Occupation",
                 placeholder = "Enter your occupation",
                 leadingIcon = Icons.Default.Work,
+                validationType = com.optivus.bharathaat.ui.components.textfields.ValidationType.NAME,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -693,13 +737,21 @@ private fun PersonalDetailsSection(
             // Save Personal Details Button
             Button(
                 onClick = onSavePersonalDetails,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 enabled = !isSaving,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Orange500,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = Orange500.copy(alpha = 0.6f)
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 2.dp,
+                    pressedElevation = 6.dp,
+                    disabledElevation = 0.dp
+                )
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
@@ -709,7 +761,11 @@ private fun PersonalDetailsSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Personal Details")
+                Text(
+                    text = "Save Personal Details",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -723,58 +779,50 @@ private fun GenderOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = if (selected) Orange100.copy(alpha = 0.6f) else Color.Transparent
-    val borderColor = if (selected) Orange500 else Grey400
+    val bgColor = if (selected) Orange100.copy(alpha = 0.8f) else MaterialTheme.colorScheme.surface
+    val borderColor = if (selected) Orange500 else MaterialTheme.colorScheme.outline
+    val textColor = if (selected) Orange700 else Grey700
+    val iconColor = if (selected) Orange600 else Grey600
 
-    Surface(
+    Card(
         onClick = onClick,
+        modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(12.dp),
-        color = bgColor,
-        tonalElevation = 0.dp,
-        modifier = modifier
-            .padding(2.dp)
-            .drawWithCardBorder(
-                color = borderColor,
-                cornerRadius = 12.dp,
-                strokeWidth = 2.dp
-            )
+        colors = CardDefaults.cardColors(
+            containerColor = bgColor
+        ),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = borderColor
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (selected) 4.dp else 0.dp
+        )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (selected) Orange700 else Grey900,
-                modifier = Modifier.size(16.dp)
+                tint = iconColor,
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = label,
-                fontSize = 14.sp,
-                color = if (selected) Orange700 else Grey900,
-                fontWeight = FontWeight.Medium
+                fontSize = 13.sp,
+                color = textColor,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
             )
         }
     }
 }
 
-private fun Modifier.drawWithCardBorder(
-    color: Color,
-    cornerRadius: Dp,
-    strokeWidth: Dp
-): Modifier = this.then(
-    Modifier.drawBehind {
-        drawRoundRect(
-            color = color,
-            size = this.size,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius.toPx(), cornerRadius.toPx()),
-            style = Stroke(width = strokeWidth.toPx())
-        )
-    }
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -787,24 +835,15 @@ private fun DatePickerField(
     var showDatePicker by remember { mutableStateOf(false) }
 
     Column {
-        OutlinedTextField(
+        CustomTextField(
             value = value,
             onValueChange = { },
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
+            label = label,
+            placeholder = placeholder,
+            leadingIcon = Icons.Default.DateRange,
+            trailingIcon = Icons.Default.CalendarToday,
+            onTrailingIconClick = { showDatePicker = true },
             readOnly = true,
-            trailingIcon = {
-                IconButton(onClick = { showDatePicker = true }) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Select Date"
-                    )
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange500,
-                focusedLabelColor = Orange500
-            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { showDatePicker = true }
@@ -1106,9 +1145,11 @@ private fun AddressInfoSection(
             CustomTextField(
                 value = address,
                 onValueChange = onAddressChange,
-                label = "Address",
-                placeholder = "Enter your address",
+                label = "Street Address",
+                placeholder = "Enter your complete address",
                 leadingIcon = Icons.Default.Home,
+                maxLines = 2,
+                minLines = 1,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1145,9 +1186,10 @@ private fun AddressInfoSection(
                 value = pincode,
                 onValueChange = onPincodeChange,
                 label = "Pincode",
-                placeholder = "Enter your pincode",
+                placeholder = "Enter 6-digit pincode",
                 leadingIcon = Icons.Default.Pin,
                 keyboardType = KeyboardType.Number,
+                validationType = com.optivus.bharathaat.ui.components.textfields.ValidationType.PINCODE,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1156,13 +1198,21 @@ private fun AddressInfoSection(
             // Save Address Button
             Button(
                 onClick = onSaveAddress,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 enabled = !isSaving,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Orange500,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = Orange500.copy(alpha = 0.6f)
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 2.dp,
+                    pressedElevation = 6.dp,
+                    disabledElevation = 0.dp
+                )
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
@@ -1172,7 +1222,11 @@ private fun AddressInfoSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Address")
+                Text(
+                    text = "Save Address Information",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
