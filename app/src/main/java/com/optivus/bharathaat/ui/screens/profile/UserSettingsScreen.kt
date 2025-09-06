@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,16 +92,16 @@ fun UserSettingsScreen(
         }
     }
 
-    // Animation states
+    // Optimized animation states - much faster transitions
     val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 50), // Reduced from 300ms to 50ms
         label = "content_alpha"
     )
 
     val contentOffset by animateFloatAsState(
-        targetValue = if (startAnimation) 0f else 50f,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = if (startAnimation) 0f else 20f, // Reduced from 50f to 20f
+        animationSpec = tween(durationMillis = 50), // Reduced from 300ms to 50ms
         label = "content_offset"
     )
 
@@ -112,6 +113,11 @@ fun UserSettingsScreen(
         )
     )
 
+    // Start animation immediately to prevent blank screen
+    LaunchedEffect(Unit) {
+        startAnimation = true
+    }
+    
     // Initialize form fields with user data
     LaunchedEffect(userProfile) {
         userProfile?.let { profile ->
@@ -126,17 +132,21 @@ fun UserSettingsScreen(
             if (pincode.isEmpty()) pincode = profile.pincode ?: ""
             if (occupation.isEmpty()) occupation = profile.occupation ?: ""
         }
-        if (!startAnimation) startAnimation = true
     }
 
-    // Handle profile state changes - only show snackbar for explicit user actions, not automatic saves
+    // Enhanced profile state handling with better UX feedback
     LaunchedEffect(profileState) {
         when (profileState) {
             is ProfileState.Success -> {
-                // Only show success for personal details and address saves
-                isSavingPersonalDetails = false
-                isSavingAddress = false
-                // Don't show automatic success snackbar
+                // Show success feedback for save operations
+                if (isSavingPersonalDetails) {
+                    snackbarHostState.showSnackbar("Personal details saved successfully!")
+                    isSavingPersonalDetails = false
+                }
+                if (isSavingAddress) {
+                    snackbarHostState.showSnackbar("Address information saved successfully!")
+                    isSavingAddress = false
+                }
             }
             is ProfileState.EmailUpdateSuccess -> {
                 snackbarHostState.showSnackbar("Email updated! Please verify your new email.")
@@ -269,6 +279,11 @@ fun UserSettingsScreen(
                         onPreviewPhoto = { if (profile.photoUrl != null) showPhotoPreview = true },
                         isUploadingPhoto = isUploadingPhoto
                     )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // User ID and Account Overview Section
+                    UserAccountOverviewSection(profile = profile)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -840,9 +855,216 @@ private fun DatePickerDialog(
             colors = DatePickerDefaults.colors(
                 selectedDayContainerColor = Orange500,
                 todayDateBorderColor = Orange500
+        )
+    )
+}
+
+@Composable
+private fun UserAccountOverviewSection(
+    profile: com.optivus.bharathaat.ui.viewmodels.UserProfile
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "Account Overview",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Grey900,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
+
+            // User ID Row
+            AccountInfoRow(
+                icon = Icons.Default.Fingerprint,
+                label = "User ID",
+                value = profile.uid.take(8).uppercase() + "...",
+                iconColor = Orange500
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Account Type/Role
+            val role = when {
+                profile.phoneNumber?.isNotEmpty() == true -> "Verified User"
+                profile.isEmailVerified -> "Standard User" 
+                else -> "Basic User"
+            }
+            
+            AccountInfoRow(
+                icon = Icons.Default.AccountBox,
+                label = "Account Type",
+                value = role,
+                iconColor = Orange500
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Member Since
+            profile.creationTime?.let { creationTime ->
+                val date = java.util.Date(creationTime)
+                val formatter = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                AccountInfoRow(
+                    icon = Icons.Default.Schedule,
+                    label = "Member Since",
+                    value = formatter.format(date),
+                    iconColor = Orange500
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Email Verification Status
+            AccountInfoRow(
+                icon = if (profile.isEmailVerified) Icons.Default.VerifiedUser else Icons.Default.Warning,
+                label = "Email Status",
+                value = if (profile.isEmailVerified) "Verified" else "Not Verified",
+                iconColor = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error,
+                valueColor = if (profile.isEmailVerified) Success else MaterialTheme.colorScheme.error
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Last Sign In (if available)
+            profile.lastSignInTime?.let { lastSignIn ->
+                val date = java.util.Date(lastSignIn)
+                val now = System.currentTimeMillis()
+                val diff = now - lastSignIn
+                val timeAgo = when {
+                    diff < 60 * 1000 -> "Just now"
+                    diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} min ago"
+                    diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)} hours ago"
+                    else -> {
+                        val formatter = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                        formatter.format(date)
+                    }
+                }
+                
+                AccountInfoRow(
+                    icon = Icons.Default.AccessTime,
+                    label = "Last Active",
+                    value = timeAgo,
+                    iconColor = Orange500
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountInfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    iconColor: Color = Orange500,
+    valueColor: Color = Grey900
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Grey500,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                fontSize = 14.sp,
+                color = valueColor,
+                fontWeight = FontWeight.Medium
         )
     }
+}
+
+@Composable
+private fun PhotoPreviewDialog(
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Profile Photo",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Grey900
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Grey600
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Profile Photo Preview",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Orange500,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+}
 }
 
 @Composable

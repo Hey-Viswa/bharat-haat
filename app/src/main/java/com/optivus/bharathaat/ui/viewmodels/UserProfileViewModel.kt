@@ -92,7 +92,7 @@ class UserProfileViewModel @Inject constructor(
     }
 
     /**
-     * Load current user profile with fresh data from Firebase Auth and Firestore
+     * Load current user profile with optimized loading for faster response
      */
     fun loadUserProfile() {
         viewModelScope.launch {
@@ -105,28 +105,22 @@ class UserProfileViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Always reload user data to get latest information from Firebase Auth
-                currentUser.reload().await()
-
-                // Get fresh user data after reload
-                val freshUser = firebaseAuth.currentUser
-                if (freshUser == null) {
-                    _profileState.value = ProfileState.Error("User session expired")
-                    return@launch
-                }
-
-                // Get user data from Firestore
+                // Skip expensive reload operation for faster loading
+                // Only reload if we detect stale data or authentication issues
+                var freshUser = currentUser
+                
+                // Try to get Firestore data first without reloading
                 val result = userRepository.getUserData()
                 if (result.isSuccess) {
                     val userData = result.getOrNull()
                     if (userData != null) {
-                        // Convert Firestore UserData to local UserProfile
+                        // Convert Firestore UserData to local UserProfile with current auth data
                         val profile = UserProfile(
                             uid = userData.uid,
                             displayName = userData.displayName,
                             email = userData.email,
                             photoUrl = userData.photoUrl,
-                            isEmailVerified = userData.isEmailVerified,
+                            isEmailVerified = freshUser.isEmailVerified, // Use current auth state
                             phoneNumber = userData.phoneNumber,
                             creationTime = freshUser.metadata?.creationTimestamp,
                             lastSignInTime = freshUser.metadata?.lastSignInTimestamp,
@@ -139,16 +133,45 @@ class UserProfileViewModel @Inject constructor(
                             occupation = userData.occupation
                         )
                         _userProfile.value = profile
+                        _profileState.value = ProfileState.Success
+                        return@launch
+                    }
+                }
+                
+                // Only reload if Firestore data is missing or there's an auth issue
+                try {
+                    freshUser.reload().await()
+                    freshUser = firebaseAuth.currentUser ?: freshUser
+                } catch (e: Exception) {
+                    // If reload fails, continue with current user data
+                }
+
+                // Attempt to get/create user data with fallback
+                val firestoreResult = userRepository.getUserData()
+                if (firestoreResult.isSuccess) {
+                    val userData = firestoreResult.getOrNull()
+                    if (userData != null) {
+                        // Use the data we already loaded above - this is redundant now but kept for safety
+                        _profileState.value = ProfileState.Success
                     } else {
                         // Create initial user data in Firestore if it doesn't exist
                         createInitialUserData(freshUser)
                     }
                 } else {
-                    // Fallback to Firebase Auth data if Firestore fails
-                    createInitialUserData(freshUser)
+                    // Fallback: Create profile with current Firebase Auth data
+                    val profile = UserProfile(
+                        uid = freshUser.uid,
+                        displayName = freshUser.displayName ?: "",
+                        email = freshUser.email ?: "",
+                        photoUrl = freshUser.photoUrl?.toString(),
+                        isEmailVerified = freshUser.isEmailVerified,
+                        phoneNumber = freshUser.phoneNumber,
+                        creationTime = freshUser.metadata?.creationTimestamp,
+                        lastSignInTime = freshUser.metadata?.lastSignInTimestamp
+                    )
+                    _userProfile.value = profile
+                    _profileState.value = ProfileState.Success
                 }
-
-                _profileState.value = ProfileState.Success
 
             } catch (e: Exception) {
                 _profileState.value = ProfileState.Error(e.message ?: "Failed to load profile")
@@ -444,11 +467,11 @@ class UserProfileViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Save complete user data to Firestore and wait for completion
+                // Save complete user data to Firestore with enhanced error handling
                 val result = userRepository.saveUserData(userData)
 
                 if (result.isSuccess) {
-                    // Only update local profile and show success after Firestore operation succeeds
+                    // Immediately update local profile for responsive UI
                     _userProfile.value = _userProfile.value?.copy(
                         phoneNumber = userData.phoneNumber,
                         gender = userData.gender,
@@ -459,30 +482,30 @@ class UserProfileViewModel @Inject constructor(
                         state = userData.state,
                         pincode = userData.pincode
                     )
-
-                    // Add a small delay to ensure Firestore operation is complete
-                    kotlinx.coroutines.delay(500)
-
-                    // Verify the data was actually saved by reloading from Firestore
-                    val verificationResult = userRepository.getUserData()
-                    if (verificationResult.isSuccess) {
-                        val savedData = verificationResult.getOrNull()
-                        if (savedData != null) {
-                            // Update profile with verified data from Firestore
-                            _userProfile.value = _userProfile.value?.copy(
-                                phoneNumber = savedData.phoneNumber,
-                                gender = savedData.gender,
-                                dateOfBirth = savedData.dateOfBirth,
-                                occupation = savedData.occupation,
-                                address = savedData.address,
-                                city = savedData.city,
-                                state = savedData.state,
-                                pincode = savedData.pincode
-                            )
+                    
+                    _profileState.value = ProfileState.Success
+                    
+                    // Background verification - don't block UI on this
+                    launch {
+                        kotlinx.coroutines.delay(200) // Minimal delay for Firestore consistency
+                        val verificationResult = userRepository.getUserData()
+                        if (verificationResult.isSuccess) {
+                            val savedData = verificationResult.getOrNull()
+                            savedData?.let { verified ->
+                                // Silently update with verified data if there are discrepancies
+                                _userProfile.value = _userProfile.value?.copy(
+                                    phoneNumber = verified.phoneNumber,
+                                    gender = verified.gender,
+                                    dateOfBirth = verified.dateOfBirth,
+                                    occupation = verified.occupation,
+                                    address = verified.address,
+                                    city = verified.city,
+                                    state = verified.state,
+                                    pincode = verified.pincode
+                                )
+                            }
                         }
                     }
-
-                    _profileState.value = ProfileState.Success
                 } else {
                     _profileState.value = ProfileState.Error(
                         result.exceptionOrNull()?.message ?: "Failed to update profile"
