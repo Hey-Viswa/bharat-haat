@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.optivus.bharathaat.ui.components.navigation.BottomNavItem
 import com.optivus.bharathaat.ui.components.navigation.CompactBottomNavigation
@@ -24,14 +25,14 @@ fun MainScreen(
     authViewModel: AuthViewModel = hiltViewModel(),
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableStateOf(BottomNavItem.Home) }
+    var selectedTab by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
     var cartItemCount by remember { mutableStateOf(0) } // Mock cart count
 
     Scaffold(
         bottomBar = {
             CompactBottomNavigation(
                 selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
+                onTabSelected = { tab -> selectedTab = tab },
                 badgeCount = cartItemCount
             )
         }
@@ -102,10 +103,13 @@ fun MainScreen(
 
                 BottomNavItem.Profile -> {
                     ProfileScreen(
-                        onBackClick = {
+                        onNavigateBack = {
                             selectedTab = BottomNavItem.Home
                         },
-                        onLogout = onLogout
+                        onNavigateToSettings = {
+                            // TODO: Navigate to settings when settings screen is available
+                        },
+                        onSignOut = onLogout
                     )
                 }
             }

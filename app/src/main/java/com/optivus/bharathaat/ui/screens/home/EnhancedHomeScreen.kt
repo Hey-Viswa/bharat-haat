@@ -619,9 +619,10 @@ private fun EnhancedProductCard(
                         )
                         
                         // Original price (struck through)
-                        if (product.originalPrice != null && product.originalPrice > product.price) {
+                        val originalPrice = product.originalPrice
+                        if (originalPrice != null && originalPrice > product.price) {
                             Text(
-                                text = "₹${product.originalPrice.toInt()}",
+                                text = "₹${originalPrice.toInt()}",
                                 fontSize = 12.sp,
                                 color = Grey600,
                                 textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough

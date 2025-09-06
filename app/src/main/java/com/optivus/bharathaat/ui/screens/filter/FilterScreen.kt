@@ -174,9 +174,9 @@ fun FilterScreen(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Grey700
                     ),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = null,
-                        width = 1.dp
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = Grey300
                     )
                 ) {
                     Text(
@@ -244,7 +244,7 @@ private fun CategoryFilterGrid(
         CategoryItem("Pants", Icons.Default.Straighten),
         CategoryItem("Shirts", Icons.Default.Folder),
         CategoryItem("T-shirts", Icons.Default.LocalMall),
-        CategoryItem("Jackets", Icons.Default.Outerwear),
+        CategoryItem("Jackets", Icons.Default.LocalOffer),
         CategoryItem("Hoodies", Icons.Default.Cabin),
         CategoryItem("Shirts", Icons.Default.ShoppingBag),
         CategoryItem("Polo", Icons.Default.Sports),
@@ -511,6 +511,8 @@ private fun SortOptionsFilter(
                 ),
                 border = if (selectedOption != option) {
                     FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = false,
                         borderColor = Grey300,
                         selectedBorderColor = OrangeAccent
                     )
