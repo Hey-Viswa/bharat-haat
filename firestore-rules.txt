@@ -1,0 +1,237 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for security
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+    
+    function hasValidUserData() {
+      return request.resource.data.keys().hasAll(['uid', 'displayName', 'email']) &&
+             request.resource.data.uid == request.auth.uid &&
+             request.resource.data.email == request.auth.token.email;
+    }
+    
+    function isValidRole() {
+      return request.resource.data.role in ['buyer', 'seller'];
+    }
+    
+    // Users collection - Core user profile data
+    match /users/{userId} {
+      // Users can read and write their own profile
+      allow read, write: if isOwner(userId) && hasValidUserData();
+      
+      // Allow creation of new user profile during registration
+      allow create: if isAuthenticated() && 
+                       userId == request.auth.uid &&
+                       hasValidUserData() &&
+                       isValidRole();
+      
+      // Allow updates to own profile with data validation
+      allow update: if isOwner(userId) &&
+                       hasValidUserData() &&
+                       isValidRole();
+      
+      // Prevent deletion of user profiles (for data integrity)
+      allow delete: if false;
+    }
+    
+    // User preferences and settings (separate from main profile)
+    match /user_preferences/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Products collection
+    match /products/{productId} {
+      // Anyone can read products (for browsing)
+      allow read: if true;
+      
+      // Only authenticated sellers can create products
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.sellerId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['title', 'description', 'price', 'sellerId', 'category']) &&
+                       request.resource.data.price > 0;
+      
+      // Only product owner can update their products
+      allow update: if isAuthenticated() &&
+                       resource.data.sellerId == request.auth.uid &&
+                       request.resource.data.sellerId == request.auth.uid;
+      
+      // Only product owner can delete their products
+      allow delete: if isAuthenticated() &&
+                       resource.data.sellerId == request.auth.uid;
+    }
+    
+    // Categories collection (read-only for users, admin-managed)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if false; // Categories managed by admin only
+    }
+    
+    // Orders collection
+    match /orders/{orderId} {
+      // Users can read their own orders (as buyer or seller)
+      allow read: if isAuthenticated() &&
+                     (resource.data.buyerId == request.auth.uid ||
+                      resource.data.sellerId == request.auth.uid);
+      
+      // Only authenticated buyers can create orders
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.buyerId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['buyerId', 'sellerId', 'productId', 'quantity', 'totalPrice', 'status']) &&
+                       request.resource.data.quantity > 0 &&
+                       request.resource.data.totalPrice > 0;
+      
+      // Buyers and sellers can update order status
+      allow update: if isAuthenticated() &&
+                       (resource.data.buyerId == request.auth.uid ||
+                        resource.data.sellerId == request.auth.uid) &&
+                       // Prevent changing critical order details
+                       request.resource.data.buyerId == resource.data.buyerId &&
+                       request.resource.data.sellerId == resource.data.sellerId &&
+                       request.resource.data.productId == resource.data.productId;
+      
+      // No deletion of orders (for audit trail)
+      allow delete: if false;
+    }
+    
+    // Shopping cart collection
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Cart items subcollection
+      match /items/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Wishlist collection
+    match /wishlists/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Wishlist items subcollection
+      match /items/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Reviews collection
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Only authenticated users who purchased the product can create reviews
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['userId', 'productId', 'rating', 'comment']) &&
+                       request.resource.data.rating >= 1 &&
+                       request.resource.data.rating <= 5;
+      
+      // Users can update their own reviews
+      allow update: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Users can delete their own reviews
+      allow delete: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid;
+    }
+    
+    // Addresses collection (user shipping addresses)
+    match /addresses/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Individual addresses subcollection
+      match /user_addresses/{addressId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Payment methods collection
+    match /payment_methods/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Individual payment methods subcollection
+      match /methods/{methodId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Notifications collection
+    match /notifications/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Individual notifications subcollection
+      match /user_notifications/{notificationId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Chat/Messages collection (between buyers and sellers)
+    match /chats/{chatId} {
+      // Users can read chats they participate in
+      allow read: if isAuthenticated() &&
+                     (resource.data.buyerId == request.auth.uid ||
+                      resource.data.sellerId == request.auth.uid);
+      
+      // Users can create chats
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.buyerId == request.auth.uid ||
+                        request.resource.data.sellerId == request.auth.uid);
+      
+      // Participants can update chat metadata
+      allow update: if isAuthenticated() &&
+                       (resource.data.buyerId == request.auth.uid ||
+                        resource.data.sellerId == request.auth.uid);
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+                       (get(/databases/$(database)/documents/chats/$(chatId)).data.buyerId == request.auth.uid ||
+                        get(/databases/$(database)/documents/chats/$(chatId)).data.sellerId == request.auth.uid);
+        
+        allow create: if isAuthenticated() &&
+                         request.resource.data.senderId == request.auth.uid &&
+                         (get(/databases/$(database)/documents/chats/$(chatId)).data.buyerId == request.auth.uid ||
+                          get(/databases/$(database)/documents/chats/$(chatId)).data.sellerId == request.auth.uid);
+      }
+    }
+    
+    // Analytics and app metadata (read-only for users)
+    match /app_metadata/{document} {
+      allow read: if true;
+      allow write: if false; // Admin managed
+    }
+    
+    // Reports collection (for reporting inappropriate content)
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       request.resource.data.reporterId == request.auth.uid;
+      
+      // Users can read their own reports
+      allow read: if isAuthenticated() &&
+                     resource.data.reporterId == request.auth.uid;
+      
+      allow update, delete: if false; // Reports are immutable once created
+    }
+    
+    // Default deny rule for any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

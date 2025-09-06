@@ -283,7 +283,7 @@ fun UserSettingsScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // User ID and Account Overview Section
-                    UserAccountOverviewSection(profile = profile)
+                    // TODO: Add UserAccountOverviewSection(profile = profile)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -855,8 +855,9 @@ private fun DatePickerDialog(
             colors = DatePickerDefaults.colors(
                 selectedDayContainerColor = Orange500,
                 todayDateBorderColor = Orange500
+            )
         )
-    )
+    }
 }
 
 @Composable
@@ -993,7 +994,8 @@ private fun AccountInfoRow(
                 fontSize = 14.sp,
                 color = valueColor,
                 fontWeight = FontWeight.Medium
-        )
+            )
+        }
     }
 }
 
@@ -1064,8 +1066,6 @@ private fun PhotoPreviewDialog(
         }
     }
 }
-}
-}
 
 @Composable
 private fun AddressInfoSection(
@@ -1078,7 +1078,7 @@ private fun AddressInfoSection(
     pincode: String,
     onPincodeChange: (String) -> Unit,
     onSaveAddress: () -> Unit,
-    isSaving: Boolean = false
+    isSaving: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1112,31 +1112,33 @@ private fun AddressInfoSection(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // City Field
-            CustomTextField(
-                value = city,
-                onValueChange = onCityChange,
-                label = "City",
-                placeholder = "Enter your city",
-                leadingIcon = Icons.Default.LocationCity,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // City and State Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CustomTextField(
+                    value = city,
+                    onValueChange = onCityChange,
+                    label = "City",
+                    placeholder = "Enter city",
+                    leadingIcon = Icons.Default.LocationCity,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                CustomTextField(
+                    value = state,
+                    onValueChange = onStateChange,
+                    label = "State",
+                    placeholder = "Enter state",
+                    leadingIcon = Icons.Default.Map,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // State Field
-            CustomTextField(
-                value = state,
-                onValueChange = onStateChange,
-                label = "State",
-                placeholder = "Enter your state",
-                leadingIcon = Icons.Default.Map,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Pincode Field
             CustomTextField(
@@ -1399,47 +1401,3 @@ private fun EnhancedDeleteAccountDialog(
     )
 }
 
-@Composable
-private fun PhotoPreviewDialog(
-    imageUrl: String,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-            ) {
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = "Profile Picture Preview",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .background(
-                            Color.Black.copy(alpha = 0.5f),
-                            CircleShape
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-    }
-}
