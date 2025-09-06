@@ -275,4 +275,122 @@ class UserRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    /**
+     * Get user data from Firestore
+     */
+    suspend fun getUserData(): Result<UserData?> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val userData = firestore.collection("users")
+                    .document(currentUser.uid)
+                    .get()
+                    .await()
+                    .toObject(UserData::class.java)
+                Result.success(userData)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Create initial user data
+     */
+    suspend fun createInitialUserData(
+        uid: String,
+        displayName: String,
+        email: String,
+        photoUrl: String?
+    ): Result<Unit> {
+        return try {
+            val userData = UserData(
+                uid = uid,
+                displayName = displayName,
+                email = email,
+                photoUrl = photoUrl,
+                isEmailVerified = firebaseAuth.currentUser?.isEmailVerified ?: false,
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+
+            firestore.collection("users")
+                .document(uid)
+                .set(userData)
+                .await()
+
+            // Cache locally
+            userDao.insertUser(userData.toEntity())
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update user data with map
+     */
+    suspend fun updateUserData(updates: Map<String, Any>): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val updatesWithTimestamp = updates.toMutableMap().apply {
+                    put("updated_at", System.currentTimeMillis())
+                }
+
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .update(updatesWithTimestamp)
+                    .await()
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete user data
+     */
+    suspend fun deleteUserData(): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .delete()
+                    .await()
+
+                // Delete from local cache
+                userDao.deleteUserById(currentUser.uid)
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Save user data (alias for saveUserProfile)
+     */
+    suspend fun saveUserData(userData: UserData): Result<Unit> {
+        return saveUserProfile(userData)
+    }
+
+    /**
+     * Upload profile image
+     */
+    suspend fun uploadProfileImage(imageUri: Uri): Result<String?> {
+        return uploadProfilePhoto(imageUri)
+    }
 }

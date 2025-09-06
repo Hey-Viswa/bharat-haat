@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.optivus.bharathaat"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.optivus.bharathaat"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -96,10 +96,10 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Hilt for dependency injection
+    // Hilt for dependency injection - Fixed to match project version
     implementation("com.google.dagger:hilt-android:2.56.2")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     ksp("com.google.dagger:hilt-compiler:2.56.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.56.2")
 
     // Hilt Navigation Compose (newer)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
@@ -126,6 +126,6 @@ dependencies {
     // Work Manager for background sync
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
-    ksp("androidx.hilt:hilt-compiler:2.56.2")
+
 
 }

@@ -1,7 +1,7 @@
-package com.optivus.bharathaat.di
+package com.optivus.bharathaat
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
-class HiltApplication : Application()
+class BharatHaatApplication : Application()
