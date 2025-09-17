@@ -5,6 +5,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +39,7 @@ import coil.compose.AsyncImage
 import com.optivus.bharathaat.ui.components.textfields.CustomTextField
 import com.optivus.bharathaat.ui.theme.*
 import com.optivus.bharathaat.ui.viewmodels.ProfileState
+import com.optivus.bharathaat.ui.components.shimmerEffect
 import com.optivus.bharathaat.ui.viewmodels.UserProfileViewModel
 import com.optivus.bharathaat.data.models.UserData
 import android.net.Uri
@@ -268,15 +271,25 @@ fun UserSettingsScreen(
                 .background(animatedGradient)
                 .padding(padding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(16.dp)
-                    .alpha(contentAlpha)
-                    .graphicsLayer { translationY = contentOffset }
-            ) {
-                userProfile?.let { profile ->
+            if (userProfile == null && profileState is ProfileState.Loading) {
+                // Show loading skeleton when profile is being fetched
+                SettingsLoadingScreen(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .alpha(contentAlpha)
+                        .graphicsLayer { translationY = contentOffset }
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(16.dp)
+                        .alpha(contentAlpha)
+                        .graphicsLayer { translationY = contentOffset }
+                ) {
+                    userProfile?.let { profile ->
                     // Profile Picture Section
                     ProfilePictureSection(
                         profile = profile,
@@ -354,11 +367,234 @@ fun UserSettingsScreen(
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun SettingsLoadingScreen(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // Profile Picture Section Loading
+        SettingsCardLoadingSkeleton(
+            title = "Profile Picture",
+            hasCircularElement = true
+        )
+        
+        // Account Overview Loading
+        SettingsCardLoadingSkeleton(
+            title = "Account Overview",
+            rowCount = 4
+        )
+        
+        // Account Information Loading
+        SettingsCardLoadingSkeleton(
+            title = "Account Information",
+            hasButtons = true
+        )
+        
+        // Personal Details Loading
+        SettingsCardLoadingSkeleton(
+            title = "Personal Details",
+            hasButtons = true,
+            rowCount = 4
+        )
+        
+        // Address Information Loading
+        SettingsCardLoadingSkeleton(
+            title = "Address Information",
+            hasButtons = true
+        )
+        
+        // Security Loading
+        SettingsCardLoadingSkeleton(
+            title = "Security",
+            hasButtons = true,
+            rowCount = 1
+        )
+    }
+}
+
+@Composable
+private fun SettingsCardLoadingSkeleton(
+    title: String,
+    hasCircularElement: Boolean = false,
+    hasButtons: Boolean = false,
+    rowCount: Int = 2
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = if (hasCircularElement) Alignment.CenterHorizontally else Alignment.Start
+        ) {
+            // Section Title
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Grey900,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            
+            // Circular element for profile picture section
+            if (hasCircularElement) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .shimmerEffect()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .shimmerEffect()
+                )
+            } else {
+                // Loading rows for other sections
+                repeat(rowCount) { index ->
+                    if (title == "Account Information" && index >= 1) {
+                        // Text field skeleton
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                    } else {
+                        // Regular info row skeleton
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (title != "Account Information") {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .shimmerEffect()
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                            }
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(if (index == 0) 100.dp else 80.dp)
+                                        .height(12.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .shimmerEffect()
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .width(if (index == 0) 150.dp else if (index == 1) 120.dp else 90.dp)
+                                        .height(14.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .shimmerEffect()
+                                )
+                            }
+                        }
+                    }
+                    
+                    if (index < rowCount - 1) {
+                        Spacer(modifier = Modifier.height(if (title == "Account Information") 20.dp else 12.dp))
+                    }
+                }
+            }
+            
+            // Button skeletons
+            if (hasButtons) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (title == "Security") {
+                    // Two small buttons for security section
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                    }
+                } else {
+                    // Single full-width button for other sections
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .shimmerEffect()
+                    )
+                    
+                    if (title == "Account Information") {
+                        // Second button for email update
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 
 @Composable
 private fun ProfilePictureSection(

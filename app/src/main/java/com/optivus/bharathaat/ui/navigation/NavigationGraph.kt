@@ -251,8 +251,8 @@ fun NavigationGraph(
                 },
                 onProductClick = { _ -> },
                 onNavigateToProfile = {
-                    // Navigate directly to Settings per requirement
-                    navController.navigate(Screen.UserSettings.route)
+                    // Navigate to Profile screen which will handle authentication state
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -271,6 +271,12 @@ fun NavigationGraph(
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.UserSettings.route)
+                },
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route)
+                },
+                onNavigateToSignup = {
+                    navController.navigate(Screen.SignUp.route)
                 },
                 onSignOut = {
                     // Only navigate to login if user explicitly signed out

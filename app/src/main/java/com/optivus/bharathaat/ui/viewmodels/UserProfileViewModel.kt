@@ -467,52 +467,72 @@ class UserProfileViewModel @Inject constructor(
                     return@launch
                 }
 
+                // Validate input data
+                val sanitizedData = userData.copy(
+                    phoneNumber = userData.phoneNumber?.trim()?.takeIf { it.isNotBlank() },
+                    gender = userData.gender?.trim()?.takeIf { it.isNotBlank() },
+                    dateOfBirth = userData.dateOfBirth?.trim()?.takeIf { it.isNotBlank() },
+                    occupation = userData.occupation?.trim()?.takeIf { it.isNotBlank() },
+                    address = userData.address?.trim()?.takeIf { it.isNotBlank() },
+                    city = userData.city?.trim()?.takeIf { it.isNotBlank() },
+                    state = userData.state?.trim()?.takeIf { it.isNotBlank() },
+                    pincode = userData.pincode?.trim()?.takeIf { it.isNotBlank() }
+                )
+
                 // Save complete user data to Firestore with enhanced error handling
-                val result = userRepository.saveUserData(userData)
+                val result = userRepository.saveUserData(sanitizedData)
 
                 if (result.isSuccess) {
                     // Immediately update local profile for responsive UI
                     _userProfile.value = _userProfile.value?.copy(
-                        phoneNumber = userData.phoneNumber,
-                        gender = userData.gender,
-                        dateOfBirth = userData.dateOfBirth,
-                        occupation = userData.occupation,
-                        address = userData.address,
-                        city = userData.city,
-                        state = userData.state,
-                        pincode = userData.pincode
+                        phoneNumber = sanitizedData.phoneNumber,
+                        gender = sanitizedData.gender,
+                        dateOfBirth = sanitizedData.dateOfBirth,
+                        occupation = sanitizedData.occupation,
+                        address = sanitizedData.address,
+                        city = sanitizedData.city,
+                        state = sanitizedData.state,
+                        pincode = sanitizedData.pincode
                     )
                     
                     _profileState.value = ProfileState.PersonalDetailsUpdateSuccess
                     
                     // Background verification - don't block UI on this
                     launch {
-                        kotlinx.coroutines.delay(200) // Minimal delay for Firestore consistency
-                        val verificationResult = userRepository.getUserData()
-                        if (verificationResult.isSuccess) {
-                            val savedData = verificationResult.getOrNull()
-                            savedData?.let { verified ->
-                                // Silently update with verified data if there are discrepancies
-                                _userProfile.value = _userProfile.value?.copy(
-                                    phoneNumber = verified.phoneNumber,
-                                    gender = verified.gender,
-                                    dateOfBirth = verified.dateOfBirth,
-                                    occupation = verified.occupation,
-                                    address = verified.address,
-                                    city = verified.city,
-                                    state = verified.state,
-                                    pincode = verified.pincode
-                                )
+                        kotlinx.coroutines.delay(500) // Increased delay for Firestore consistency
+                        try {
+                            val verificationResult = userRepository.getUserData()
+                            if (verificationResult.isSuccess) {
+                                val savedData = verificationResult.getOrNull()
+                                savedData?.let { verified ->
+                                    // Silently update with verified data if there are discrepancies
+                                    _userProfile.value = _userProfile.value?.copy(
+                                        phoneNumber = verified.phoneNumber,
+                                        gender = verified.gender,
+                                        dateOfBirth = verified.dateOfBirth,
+                                        occupation = verified.occupation,
+                                        address = verified.address,
+                                        city = verified.city,
+                                        state = verified.state,
+                                        pincode = verified.pincode
+                                    )
+                                }
                             }
+                        } catch (e: Exception) {
+                            // Don't show errors for background verification
+                            android.util.Log.w("ProfileUpdate", "Background verification failed: ${e.message}")
                         }
                     }
                 } else {
+                    val errorMessage = result.exceptionOrNull()?.message
+                    android.util.Log.e("ProfileUpdate", "Update failed: $errorMessage", result.exceptionOrNull())
                     _profileState.value = ProfileState.Error(
-                        result.exceptionOrNull()?.message ?: "Failed to update profile"
+                        errorMessage ?: "Failed to update profile"
                     )
                 }
 
             } catch (e: Exception) {
+                android.util.Log.e("ProfileUpdate", "Exception during update: ${e.message}", e)
                 _profileState.value = ProfileState.Error(e.message ?: "Failed to update profile")
             }
         }
@@ -599,44 +619,60 @@ class UserProfileViewModel @Inject constructor(
                     return@launch
                 }
 
+                // Sanitize address data
+                val sanitizedData = userData.copy(
+                    address = userData.address?.trim()?.takeIf { it.isNotBlank() },
+                    city = userData.city?.trim()?.takeIf { it.isNotBlank() },
+                    state = userData.state?.trim()?.takeIf { it.isNotBlank() },
+                    pincode = userData.pincode?.trim()?.takeIf { it.isNotBlank() }
+                )
+
                 // Save complete user data to Firestore with enhanced error handling
-                val result = userRepository.saveUserData(userData)
+                val result = userRepository.saveUserData(sanitizedData)
 
                 if (result.isSuccess) {
                     // Immediately update local profile for responsive UI
                     _userProfile.value = _userProfile.value?.copy(
-                        address = userData.address,
-                        city = userData.city,
-                        state = userData.state,
-                        pincode = userData.pincode
+                        address = sanitizedData.address,
+                        city = sanitizedData.city,
+                        state = sanitizedData.state,
+                        pincode = sanitizedData.pincode
                     )
                     
                     _profileState.value = ProfileState.AddressUpdateSuccess
                     
                     // Background verification - don't block UI on this
                     launch {
-                        kotlinx.coroutines.delay(200) // Minimal delay for Firestore consistency
-                        val verificationResult = userRepository.getUserData()
-                        if (verificationResult.isSuccess) {
-                            val savedData = verificationResult.getOrNull()
-                            savedData?.let { verified ->
-                                // Silently update with verified data if there are discrepancies
-                                _userProfile.value = _userProfile.value?.copy(
-                                    address = verified.address,
-                                    city = verified.city,
-                                    state = verified.state,
-                                    pincode = verified.pincode
-                                )
+                        kotlinx.coroutines.delay(500) // Increased delay for Firestore consistency
+                        try {
+                            val verificationResult = userRepository.getUserData()
+                            if (verificationResult.isSuccess) {
+                                val savedData = verificationResult.getOrNull()
+                                savedData?.let { verified ->
+                                    // Silently update with verified data if there are discrepancies
+                                    _userProfile.value = _userProfile.value?.copy(
+                                        address = verified.address,
+                                        city = verified.city,
+                                        state = verified.state,
+                                        pincode = verified.pincode
+                                    )
+                                }
                             }
+                        } catch (e: Exception) {
+                            // Don't show errors for background verification
+                            android.util.Log.w("AddressUpdate", "Background verification failed: ${e.message}")
                         }
                     }
                 } else {
+                    val errorMessage = result.exceptionOrNull()?.message
+                    android.util.Log.e("AddressUpdate", "Update failed: $errorMessage", result.exceptionOrNull())
                     _profileState.value = ProfileState.Error(
-                        result.exceptionOrNull()?.message ?: "Failed to update address"
+                        errorMessage ?: "Failed to update address"
                     )
                 }
 
             } catch (e: Exception) {
+                android.util.Log.e("AddressUpdate", "Exception during update: ${e.message}", e)
                 _profileState.value = ProfileState.Error(e.message ?: "Failed to update address")
             }
         }

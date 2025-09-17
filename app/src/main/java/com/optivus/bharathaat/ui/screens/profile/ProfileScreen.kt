@@ -4,6 +4,16 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,9 +40,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.optivus.bharathaat.ui.theme.*
 import com.optivus.bharathaat.ui.viewmodels.ProfileState
+import com.optivus.bharathaat.ui.components.shimmerEffect
 import com.optivus.bharathaat.ui.viewmodels.UserProfileViewModel
+import com.optivus.bharathaat.ui.viewmodels.AuthViewModel
+import com.optivus.bharathaat.ui.viewmodels.AuthState
+import com.optivus.bharathaat.utils.FirebaseDebugHelper
+import com.optivus.bharathaat.utils.FirebaseConnectionTest
+import com.optivus.bharathaat.utils.AuthVerifier
+import com.optivus.bharathaat.utils.DetailedFirebaseDebugger
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -41,9 +61,16 @@ import java.util.*
 fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+    onNavigateToSignup: () -> Unit,
     onSignOut: () -> Unit,
-    profileViewModel: UserProfileViewModel = hiltViewModel()
+    profileViewModel: UserProfileViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+    
+    // Only collect profile state if authenticated
     val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val profileState by profileViewModel.profileState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
@@ -74,6 +101,30 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         startAnimation = true
+        
+        // Add simple test log to verify this code runs
+        android.util.Log.d("ProfileScreen", "🔥 PROFILE SCREEN STARTED - Debug code is running!")
+        android.util.Log.d("ProfileScreen", "Auth State: $authState")
+        android.util.Log.d("ProfileScreen", "Current User: ${currentUser?.email}")
+        
+        // Run comprehensive debugging session
+        CoroutineScope(Dispatchers.IO).launch {
+            android.util.Log.d("ProfileScreen", "🚀 Starting debug session...")
+            DetailedFirebaseDebugger.runComprehensiveDebug()
+        }
+    }
+    
+    // Debug authentication state changes
+    LaunchedEffect(authState, currentUser) {
+        android.util.Log.d("ProfileScreen", "Auth State: $authState")
+        android.util.Log.d("ProfileScreen", "Current User: ${currentUser?.uid}")
+        android.util.Log.d("ProfileScreen", "User Email: ${currentUser?.email}")
+        android.util.Log.d("ProfileScreen", "Email Verified: ${currentUser?.isEmailVerified}")
+        
+        // Test Firestore access if user is authenticated
+        currentUser?.let { user ->
+            FirebaseDebugHelper.testFirestoreRead(user.uid)
+        }
     }
 
     // Handle profile state changes
@@ -128,57 +179,432 @@ fun ProfileScreen(
                 .background(animatedGradient)
                 .padding(padding)
         ) {
-            if (profileState is ProfileState.Loading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = Orange500,
-                        strokeWidth = 3.dp
+            // Show different content based on authentication state
+            when (authState) {
+                AuthState.Loading -> {
+                    // Show loading while checking authentication state
+                    ProfileLoadingScreen()
+                }
+                AuthState.Unauthenticated -> {
+                    // Show unauthorized profile screen for non-signed-in users
+                    UnauthorizedProfileScreen(
+                        onNavigateBack = onNavigateBack,
+                        onNavigateToLogin = onNavigateToLogin,
+                        onNavigateToSignup = onNavigateToSignup
                     )
                 }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(16.dp)
-                        .alpha(contentAlpha)
-                        .graphicsLayer { translationY = contentOffset }
+                AuthState.Authenticated -> {
+                    // Show authenticated profile content
+                    if (profileState is ProfileState.Loading || userProfile == null) {
+                        ProfileLoadingScreen()
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scrollState)
+                                .padding(16.dp)
+                                .alpha(contentAlpha)
+                                .graphicsLayer { translationY = contentOffset }
+                        ) {
+                            userProfile?.let { profile ->
+                                // Profile Header Section
+                                ProfileHeaderSection(profile = profile)
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                // Profile Information Sections
+                                PersonalInfoCard(profile = profile)
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                AddressInfoCard(profile = profile)
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                AccountInfoCard(profile = profile)
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                // Action Buttons
+                                ActionButtonsSection(
+                                    onNavigateToSettings = onNavigateToSettings,
+                                    onSignOut = onSignOut
+                                )
+
+                                Spacer(modifier = Modifier.height(32.dp))
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    // Handle other auth states (email verification, errors, etc.)
+                    UnauthorizedProfileScreen(
+                        onNavigateBack = onNavigateBack,
+                        onNavigateToLogin = onNavigateToLogin,
+                        onNavigateToSignup = onNavigateToSignup
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileLoadingScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header Loading Skeleton
+        ProfileHeaderLoadingSkeleton()
+        
+        // Personal Info Loading Skeleton
+        ProfileCardLoadingSkeleton(title = "Personal Information")
+        
+        // Address Info Loading Skeleton
+        ProfileCardLoadingSkeleton(title = "Address Information")
+        
+        // Account Info Loading Skeleton
+        ProfileCardLoadingSkeleton(title = "Account Information")
+        
+        // Action Buttons Loading Skeleton
+        ActionButtonsLoadingSkeleton()
+    }
+}
+
+@Composable
+private fun ProfileHeaderLoadingSkeleton() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Profile Picture Skeleton
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .shimmerEffect()
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Display Name Skeleton
+            Box(
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .shimmerEffect()
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Email Skeleton
+            Box(
+                modifier = Modifier
+                    .width(150.dp)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .shimmerEffect()
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Verification Status Skeleton
+            Box(
+                modifier = Modifier
+                    .width(80.dp)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .shimmerEffect()
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Member Since Skeleton
+            Box(
+                modifier = Modifier
+                    .width(120.dp)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileCardLoadingSkeleton(
+    title: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // Section Title
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Grey900,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            
+            // Loading rows with special handling for Address Information
+            if (title == "Address Information") {
+                // Address skeleton (full width)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    userProfile?.let { profile ->
-                        // Profile Header Section
-                        ProfileHeaderSection(profile = profile)
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Profile Information Sections
-                        PersonalInfoCard(profile = profile)
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        AddressInfoCard(profile = profile)
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        AccountInfoCard(profile = profile)
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Action Buttons
-                        ActionButtonsSection(
-                            onNavigateToSettings = onNavigateToSettings,
-                            onSignOut = onSignOut
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .shimmerEffect()
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .width(80.dp)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
                         )
-
-                        Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // City and State skeleton (horizontal layout)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // City skeleton
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .shimmerEffect()
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(80.dp)
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .shimmerEffect()
+                            )
+                        }
+                    }
+                    
+                    // State skeleton
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .shimmerEffect()
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(70.dp)
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .shimmerEffect()
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Pincode skeleton
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .shimmerEffect()
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .width(80.dp)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                    }
+                }
+            } else {
+                // Default skeleton for other sections
+                repeat(3) { index ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Icon skeleton
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .shimmerEffect()
+                        )
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            // Label skeleton
+                            Box(
+                                modifier = Modifier
+                                    .width(80.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .shimmerEffect()
+                            )
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            // Value skeleton
+                            Box(
+                                modifier = Modifier
+                                    .width(if (index == 0) 120.dp else if (index == 1) 100.dp else 90.dp)
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .shimmerEffect()
+                            )
+                        }
+                    }
+                    
+                    if (index < 2) {
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun ActionButtonsLoadingSkeleton() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Edit Profile Button Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .shimmerEffect()
+        )
+        
+        // Sign Out Button Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .shimmerEffect()
+        )
+    }
+}
+
 
 @Composable
 private fun ProfileHeaderSection(
@@ -411,23 +837,79 @@ private fun AddressInfoCard(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // City
-            if (!profile.city.isNullOrBlank()) {
-                InfoRow(
-                    icon = Icons.Default.LocationCity,
-                    label = "City",
-                    value = profile.city
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // State
-            if (!profile.state.isNullOrBlank()) {
-                InfoRow(
-                    icon = Icons.Default.Map,
-                    label = "State",
-                    value = profile.state
-                )
+            // City and State in horizontal layout
+            val hasCityOrState = !profile.city.isNullOrBlank() || !profile.state.isNullOrBlank()
+            if (hasCityOrState) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // City
+                    if (!profile.city.isNullOrBlank()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationCity,
+                                    contentDescription = null,
+                                    tint = Orange500,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "City",
+                                        fontSize = 12.sp,
+                                        color = Grey500,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = profile.city,
+                                        fontSize = 14.sp,
+                                        color = Grey900,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    
+                    // State
+                    if (!profile.state.isNullOrBlank()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Map,
+                                    contentDescription = null,
+                                    tint = Orange500,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "State",
+                                        fontSize = 12.sp,
+                                        color = Grey500,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = profile.state,
+                                        fontSize = 14.sp,
+                                        color = Grey900,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
             }
 

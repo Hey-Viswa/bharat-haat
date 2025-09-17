@@ -381,10 +381,86 @@ class UserRepository @Inject constructor(
     }
 
     /**
-     * Save user data (alias for saveUserProfile)
+     * Save user data with proper field mapping
      */
     suspend fun saveUserData(userData: UserData): Result<Unit> {
-        return saveUserProfile(userData)
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val userWithTimestamp = userData.copy(
+                    uid = currentUser.uid,
+                    email = currentUser.email ?: userData.email,
+                    displayName = currentUser.displayName ?: userData.displayName,
+                    isEmailVerified = currentUser.isEmailVerified,
+                    createdAt = if (userData.createdAt == 0L) System.currentTimeMillis() else userData.createdAt,
+                    updatedAt = System.currentTimeMillis()
+                )
+
+                // Save to Firestore with proper field names
+                val userDataMap = mapOf(
+                    "uid" to userWithTimestamp.uid,
+                    "display_name" to userWithTimestamp.displayName,
+                    "email" to userWithTimestamp.email,
+                    "photo_url" to userWithTimestamp.photoUrl,
+                    "is_email_verified" to userWithTimestamp.isEmailVerified,
+                    "phone_number" to userWithTimestamp.phoneNumber,
+                    "gender" to userWithTimestamp.gender,
+                    "date_of_birth" to userWithTimestamp.dateOfBirth,
+                    "address" to userWithTimestamp.address,
+                    "city" to userWithTimestamp.city,
+                    "state" to userWithTimestamp.state,
+                    "pincode" to userWithTimestamp.pincode,
+                    "occupation" to userWithTimestamp.occupation,
+                    "role" to userWithTimestamp.role,
+                    "business_name" to userWithTimestamp.businessName,
+                    "business_description" to userWithTimestamp.businessDescription,
+                    "business_address" to userWithTimestamp.businessAddress,
+                    "business_phone" to userWithTimestamp.businessPhone,
+                    "is_verified_seller" to userWithTimestamp.isVerifiedSeller,
+                    "created_at" to userWithTimestamp.createdAt,
+                    "updated_at" to userWithTimestamp.updatedAt
+                ).filterValues { it != null }
+
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .set(userDataMap)
+                    .await()
+
+                // Cache locally
+                userDao.insertUser(userWithTimestamp.toEntity())
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update user data with partial updates (enhanced)
+     */
+    suspend fun updateUserDataEnhanced(updates: Map<String, Any>): Result<Unit> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser != null) {
+                val updatesWithTimestamp = updates.toMutableMap().apply {
+                    put("updated_at", System.currentTimeMillis())
+                }
+
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .update(updatesWithTimestamp)
+                    .await()
+
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not authenticated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     /**

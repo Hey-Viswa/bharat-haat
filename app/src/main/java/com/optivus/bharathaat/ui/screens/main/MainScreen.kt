@@ -109,6 +109,14 @@ fun MainScreen(
                         onNavigateToSettings = {
                             // TODO: Navigate to settings when settings screen is available
                         },
+                        onNavigateToLogin = {
+                            // Navigate to login from profile
+                            onLogout()
+                        },
+                        onNavigateToSignup = {
+                            // Navigate to signup from profile (same as logout for now)
+                            onLogout()
+                        },
                         onSignOut = onLogout
                     )
                 }

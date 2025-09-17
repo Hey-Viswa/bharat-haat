@@ -26,6 +26,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 // Import our utilities - These provide comprehensive functionality for ecommerce operations
 import com.optivus.bharathaat.utils.*
+import android.util.Log
 
 /**
  * MainActivity - Entry point of the Bharat Haat ecommerce app
@@ -40,8 +41,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // TEST LOGGING - This should definitely appear in Logcat
+        Log.e("MAINACTIVITY", "🚀🚀🚀 MAIN ACTIVITY STARTED - APP IS RUNNING! 🚀🚀🚀")
+        Log.e("MAINACTIVITY", "📱 Device: Android ${android.os.Build.VERSION.RELEASE}")
+        Log.e("MAINACTIVITY", "📦 Package: ${packageName}")
+        
         // Initialize Firebase Auth - as per Firebase documentation
         auth = Firebase.auth
+        
+        // More test logging
+        LogTest.testLogging()
+        Log.e("MAINACTIVITY", "✅ Firebase Auth initialized")
 
         
 
